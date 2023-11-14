@@ -25,10 +25,17 @@ type VarStmt struct {
 	Expr ExprNode
 }
 
+type AssignStmt struct {
+	Left  ExprNode
+	Right ExprNode
+}
+
 func (e *ExprStmt) stmtNode()   {}
 func (r *ReturnStmt) stmtNode() {}
 func (v *VarStmt) stmtNode()    {}
+func (a *AssignStmt) stmtNode() {}
 
 func (e *ExprStmt) At() scanner.Pos   { return e.Expr.At() }
 func (r *ReturnStmt) At() scanner.Pos { return r.Pos }
 func (v *VarStmt) At() scanner.Pos    { return v.Pos }
+func (a *AssignStmt) At() scanner.Pos { return a.Left.At() }

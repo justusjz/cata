@@ -53,7 +53,16 @@ func (g *generator) genStmt(stmt ast.StmtNode, returnType ast.TypeNode) bool {
 		g.writeIndent()
 		fmt.Fprintf(g.body, "%s %s = %s;\n", ty, s.Name.Ident, expr)
 		return false
+	case *ast.AssignStmt:
+		left := g.genExpr(s.Left)
+		if !left.mut {
+			g.diagnose(s.Left.At(), "cannot assign to constant value")
+		}
+		right := g.genCoerce(s.Right, left.ty)
+		g.writeIndent()
+		fmt.Fprintf(g.body, "%s = %s;\n", left.out, right)
+		return false
 	}
-	g.diagnose(stmt.At(), "statement kind is not implemented yet")
+	g.diagnose(stmt.At(), "statement kind '%T' is not implemented yet", stmt)
 	return false
 }

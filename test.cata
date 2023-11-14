@@ -1,4 +1,5 @@
 fn test(a: i32, b: i32) i32 {
     var c: i32 = 7;
-    return a;
+    c = 3;
+    return c;
 }

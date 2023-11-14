@@ -53,8 +53,14 @@ func (p *parser) parseStmt(expected string) ast.StmtNode {
 		return &ast.VarStmt{Pos: pos, Name: name, Type: ty, Expr: expr}
 	}
 	expr := p.parseExpr(expected)
-	p.s.Expect(scanner.SEMICOLON, "';'")
-	return &ast.ExprStmt{Expr: expr}
+	if p.s.Skip(scanner.ASSIGN) {
+		right := p.parseExpr("expression")
+		p.s.Expect(scanner.SEMICOLON, "';'")
+		return &ast.AssignStmt{Left: expr, Right: right}
+	} else {
+		p.s.Expect(scanner.SEMICOLON, "';' or '='")
+		return &ast.ExprStmt{Expr: expr}
+	}
 }
 
 func (p *parser) parseBlock(expected string) []ast.StmtNode {
