@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/justusjz/cata/internal/gen"
 	"github.com/justusjz/cata/internal/parser"
 )
 
@@ -15,5 +16,5 @@ func main() {
 		fmt.Printf("error: file 'test.cata' not found\n")
 		os.Exit(1)
 	}
-	println(fn)
+	gen.Gen(fn, "test.cata")
 }

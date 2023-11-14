@@ -16,3 +16,5 @@ type NamedType struct {
 func (n *NamedType) typeNode() {}
 
 func (n *NamedType) At() scanner.Pos { return n.Name.Pos }
+
+func (n *NamedType) String() string { return n.Name.Ident }

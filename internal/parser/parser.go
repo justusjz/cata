@@ -80,7 +80,7 @@ func (p *parser) parseFnDecl() *ast.FnDecl {
 		returnType = p.parseType("type or '{'")
 	}
 	body := p.parseBlock("type or '{'")
-	return &ast.FnDecl{Name: name, Params: params, ReturnType: returnType, Body: body}
+	return &ast.FnDecl{Name: name, Params: params, ReturnType: returnType, Body: body, Scanner: p.s}
 }
 
 func Parse(path string) (*ast.FnDecl, error) {
