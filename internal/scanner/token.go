@@ -26,6 +26,9 @@ const (
 	MINUS
 	ASTERISK
 	SLASH
+
+	FN
+	RETURN
 )
 
 func (t Token) String() string {
@@ -54,6 +57,9 @@ var tokens = map[Token]string{
 	MINUS:    "'-'",
 	ASTERISK: "'*'",
 	SLASH:    "'/'",
+
+	FN:     "'fn'",
+	RETURN: "'return'",
 }
 
 type Pos struct {

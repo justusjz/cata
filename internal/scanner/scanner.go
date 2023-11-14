@@ -106,8 +106,15 @@ func (s *Scanner) scan() {
 		for s.pos < len(s.content) && (isLetter(s.content[s.pos]) || isDigit(s.content[s.pos])) {
 			s.pos++
 		}
-		s.tok_val = s.content[begin:s.pos]
-		s.tok = IDENT
+		val := s.content[begin:s.pos]
+		if keyword, ok := keywords[val]; ok {
+			// keyword
+			s.tok = keyword
+		} else {
+			// identifier
+			s.tok_val = s.content[begin:s.pos]
+			s.tok = IDENT
+		}
 	} else if isDigit(s.content[s.pos]) {
 		// integer literal
 		begin := s.pos
@@ -160,4 +167,9 @@ func (s *Scanner) scan() {
 			s.Diagnose(s.tok_pos, "invalid character '%c'", s.content[s.pos])
 		}
 	}
+}
+
+var keywords = map[string]Token{
+	"fn":     FN,
+	"return": RETURN,
 }

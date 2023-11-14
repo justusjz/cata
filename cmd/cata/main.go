@@ -6,14 +6,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/justusjz/cata/internal/scanner"
+	"github.com/justusjz/cata/internal/parser"
 )
 
 func main() {
-	s, err := scanner.New("test.cata")
+	fn, err := parser.Parse("test.cata")
 	if err != nil {
 		fmt.Printf("error: file 'test.cata' not found\n")
 		os.Exit(1)
 	}
-	s.Diagnose(s.Pos(), "some error message")
+	println(fn)
 }
