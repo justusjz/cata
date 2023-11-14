@@ -61,7 +61,7 @@ func (s *Scanner) Expect(tok Token, expected string) string {
 		return val
 	} else {
 		// expected different token
-		s.Diagnose(s.tok_pos, "error: expected %s but got %s", expected, s.tok)
+		s.Diagnose(s.tok_pos, "expected %s but got %s", expected, s.tok)
 		return ""
 	}
 }
@@ -163,6 +163,8 @@ func (s *Scanner) scan() {
 			} else {
 				s.tok = SLASH
 			}
+		case '=':
+			s.tok = ASSIGN
 		default:
 			s.Diagnose(s.tok_pos, "invalid character '%c'", s.content[s.pos])
 		}
@@ -172,4 +174,5 @@ func (s *Scanner) scan() {
 var keywords = map[string]Token{
 	"fn":     FN,
 	"return": RETURN,
+	"var":    VAR,
 }

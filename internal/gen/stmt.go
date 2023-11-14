@@ -27,6 +27,7 @@ func (g *generator) genStmt(stmt ast.StmtNode, returnType ast.TypeNode) bool {
 	switch s := stmt.(type) {
 	case *ast.ExprStmt:
 		g.diagnose(s.Expr.At(), "expression cannot be used as statements")
+		return false
 	case *ast.ReturnStmt:
 		if returnType != nil && s.Expr == nil {
 			g.diagnose(s.Pos, "expected return value of type '%s'", returnType)
@@ -42,6 +43,17 @@ func (g *generator) genStmt(stmt ast.StmtNode, returnType ast.TypeNode) bool {
 			fmt.Fprintf(g.body, "return %s;\n", expr)
 		}
 		return true
+	case *ast.VarStmt:
+		if g.scope.find(s.Name.Ident) != nil {
+			g.diagnose(s.Name.Pos, "duplicate identifier '%s'", s.Name.Ident)
+		}
+		g.scope.add(s.Name.Ident, &scopeVar{ty: s.Type, mut: true})
+		ty := g.genType(s.Type)
+		expr := g.genCoerce(s.Expr, s.Type)
+		g.writeIndent()
+		fmt.Fprintf(g.body, "%s %s = %s;\n", ty, s.Name.Ident, expr)
+		return false
 	}
+	g.diagnose(stmt.At(), "statement kind is not implemented yet")
 	return false
 }

@@ -15,6 +15,7 @@ type generator struct {
 	header  *os.File
 	scanner *scanner.Scanner
 	indent  int
+	scope   *scope
 }
 
 func (g *generator) diagnose(pos scanner.Pos, format string, a ...any) {
@@ -38,7 +39,7 @@ func Gen(fnDecl *ast.FnDecl, out string) error {
 	}
 	fmt.Fprint(header, "#include <stdint.h>\n\n")
 	fmt.Fprintf(body, "#include \"%s.h\"\n\n", out)
-	g := generator{body: body, header: header, scanner: fnDecl.Scanner, indent: 0}
+	g := generator{body: body, header: header, scanner: fnDecl.Scanner, indent: 0, scope: newGlobalScope()}
 	g.genFnDecl(fnDecl)
 	body.Close()
 	header.Close()

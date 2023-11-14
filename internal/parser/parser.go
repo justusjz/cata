@@ -43,6 +43,14 @@ func (p *parser) parseStmt(expected string) ast.StmtNode {
 		} else {
 			return &ast.ReturnStmt{Pos: pos, Expr: nil}
 		}
+	} else if p.s.Skip(scanner.VAR) {
+		name := p.parseIdent("identifier")
+		p.s.Expect(scanner.COLON, "':'")
+		ty := p.parseType("type")
+		p.s.Expect(scanner.ASSIGN, "'='")
+		expr := p.parseExpr("expression")
+		p.s.Expect(scanner.SEMICOLON, "';'")
+		return &ast.VarStmt{Pos: pos, Name: name, Type: ty, Expr: expr}
 	}
 	expr := p.parseExpr(expected)
 	p.s.Expect(scanner.SEMICOLON, "';'")
@@ -67,6 +75,7 @@ func (p *parser) parseFnDecl() *ast.FnDecl {
 	if !p.s.Has(scanner.RPAREN) {
 		for {
 			paramName := p.parseIdent("identifier")
+			p.s.Expect(scanner.COLON, "':'")
 			paramType := p.parseType("type")
 			params = append(params, ast.Param{Name: paramName, Type: paramType})
 			if !p.s.Skip(scanner.COMMA) {
