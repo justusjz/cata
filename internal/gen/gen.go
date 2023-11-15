@@ -28,7 +28,7 @@ func (g *generator) writeIndent() {
 	}
 }
 
-func Gen(fnDecl *ast.FnDecl, out string) error {
+func Gen(module *ast.Module, out string) error {
 	body, err := os.Create(out + ".c")
 	if err != nil {
 		return err
@@ -39,8 +39,25 @@ func Gen(fnDecl *ast.FnDecl, out string) error {
 	}
 	fmt.Fprint(header, "#include <stdint.h>\n\n")
 	fmt.Fprintf(body, "#include \"%s.h\"\n\n", out)
-	g := generator{body: body, header: header, scanner: fnDecl.Scanner, indent: 0, scope: newGlobalScope()}
-	g.genFnDecl(fnDecl)
+	g := generator{body: body, header: header, scanner: nil, indent: 0, scope: newGlobalScope()}
+	for _, fn := range module.Fns {
+		// add functions to scope
+		g.scanner = fn.Scanner
+		fnParams := []ast.TypeNode{}
+		for _, param := range fn.Params {
+			fnParams = append(fnParams, param.Type)
+		}
+		fnTy := &ast.FnType{Params: fnParams, ReturnType: fn.ReturnType}
+		if g.scope.find(fn.Name.Ident) != nil {
+			g.diagnose(fn.Name.Pos, "duplicate identifier '%s'", fn.Name.Ident)
+		}
+		g.scope.add(fn.Name.Ident, &scopeVar{ty: fnTy, mut: false})
+	}
+	for _, fn := range module.Fns {
+		// generate functions
+		g.scanner = fn.Scanner
+		g.genFnDecl(fn)
+	}
 	body.Close()
 	header.Close()
 	return nil

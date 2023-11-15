@@ -26,7 +26,13 @@ func (g *generator) genBlock(block []ast.StmtNode, returnType ast.TypeNode) bool
 func (g *generator) genStmt(stmt ast.StmtNode, returnType ast.TypeNode) bool {
 	switch s := stmt.(type) {
 	case *ast.ExprStmt:
-		g.diagnose(s.Expr.At(), "expression cannot be used as statements")
+		if e, ok := s.Expr.(*ast.CallExpr); ok {
+			g.writeIndent()
+			expr := g.genExpr(e)
+			fmt.Fprintf(g.body, "%s;\n", expr.out)
+		} else {
+			g.diagnose(s.Expr.At(), "expression cannot be used as statement")
+		}
 		return false
 	case *ast.ReturnStmt:
 		if returnType != nil && s.Expr == nil {

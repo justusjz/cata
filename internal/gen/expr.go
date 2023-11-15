@@ -3,6 +3,9 @@
 package gen
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/justusjz/cata/internal/ast"
 )
 
@@ -28,6 +31,25 @@ func (g *generator) genExpr(expr ast.ExprNode) exprResult {
 		} else {
 			g.diagnose(e.At(), "expected variable name")
 		}
+	case *ast.CallExpr:
+		fn := g.genExpr(e.Fn)
+		if fnTy, ok := fn.ty.(*ast.FnType); ok {
+			if len(e.Args) != len(fnTy.Params) {
+				g.diagnose(e.At(), "expected %d arguments, but got %d", len(fnTy.Params), len(e.Args))
+			}
+			args := []string{}
+			for i := 0; i < len(e.Args); i++ {
+				arg := g.genCoerce(e.Args[i], fnTy.Params[i])
+				args = append(args, arg)
+			}
+			strArgs := strings.Join(args, ", ")
+			out := fmt.Sprintf("%s(%s)", fn.out, strArgs)
+			return exprResult{out: out, ty: fnTy.ReturnType, mut: false}
+		} else if fn.ty == nil {
+			g.diagnose(e.Fn.At(), "cannot call value of type 'void'")
+		} else {
+			g.diagnose(e.Fn.At(), "cannot call value of type '%s'", fn.ty)
+		}
 	}
 	g.diagnose(expr.At(), "expression kind is not implemented yet")
 	return exprResult{}
@@ -35,6 +57,9 @@ func (g *generator) genExpr(expr ast.ExprNode) exprResult {
 
 func (g *generator) genCoerce(expr ast.ExprNode, ty ast.TypeNode) string {
 	result := g.genExpr(expr)
+	if result.ty == nil {
+		g.diagnose(expr.At(), "expression does not have a value")
+	}
 	if !typeEqual(result.ty, ty) {
 		g.diagnose(expr.At(), "cannot convert from '%s' to '%s'", result.ty, ty)
 	}

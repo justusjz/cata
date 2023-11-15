@@ -17,7 +17,7 @@ func (p *parser) parseIdent(expected string) ast.Ident {
 	return ast.Ident{Pos: pos, Ident: ident}
 }
 
-func (p *parser) parseExpr(expected string) ast.ExprNode {
+func (p *parser) parseOperand(expected string) ast.ExprNode {
 	pos := p.s.Pos()
 	if p.s.Has(scanner.INT) {
 		val := p.s.Expect(scanner.INT, "")
@@ -26,6 +26,30 @@ func (p *parser) parseExpr(expected string) ast.ExprNode {
 		ident := p.parseIdent(expected)
 		return &ast.VarExpr{Name: ident}
 	}
+}
+
+func (p *parser) parsePrimary(expected string) ast.ExprNode {
+	expr := p.parseOperand(expected)
+	for p.s.Skip(scanner.LPAREN) {
+		// function call
+		args := []ast.ExprNode{}
+		if !p.s.Skip(scanner.RPAREN) {
+			for {
+				arg := p.parseExpr("expression")
+				args = append(args, arg)
+				if !p.s.Skip(scanner.COMMA) {
+					break
+				}
+			}
+			p.s.Expect(scanner.RPAREN, "',' or ')'")
+		}
+		expr = &ast.CallExpr{Fn: expr, Args: args}
+	}
+	return expr
+}
+
+func (p *parser) parseExpr(expected string) ast.ExprNode {
+	return p.parsePrimary(expected)
 }
 
 func (p *parser) parseType(expected string) ast.TypeNode {
@@ -98,12 +122,16 @@ func (p *parser) parseFnDecl() *ast.FnDecl {
 	return &ast.FnDecl{Name: name, Params: params, ReturnType: returnType, Body: body, Scanner: p.s}
 }
 
-func Parse(path string) (*ast.FnDecl, error) {
-	scanner, err := scanner.New(path)
+func Parse(path string) *ast.Module {
+	s, err := scanner.New(path)
 	if err != nil {
-		return nil, err
+		panic("could not open file")
 	}
-	p := parser{s: scanner}
-	fn := p.parseFnDecl()
-	return fn, nil
+	module := &ast.Module{Fns: []*ast.FnDecl{}}
+	p := parser{s: s}
+	for !p.s.Has(scanner.EOF) {
+		fn := p.parseFnDecl()
+		module.Fns = append(module.Fns, fn)
+	}
+	return module
 }

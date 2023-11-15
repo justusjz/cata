@@ -2,9 +2,15 @@
 
 package ast
 
-import "github.com/justusjz/cata/internal/scanner"
+import (
+	"github.com/justusjz/cata/internal/scanner"
+)
 
 type Ident struct {
 	Pos   scanner.Pos
 	Ident string
+}
+
+type Module struct {
+	Fns []*FnDecl
 }

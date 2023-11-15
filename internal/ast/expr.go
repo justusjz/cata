@@ -18,8 +18,15 @@ type VarExpr struct {
 	Name Ident
 }
 
-func (i *IntExpr) exprNode() {}
-func (v *VarExpr) exprNode() {}
+type CallExpr struct {
+	Fn   ExprNode
+	Args []ExprNode
+}
 
-func (i *IntExpr) At() scanner.Pos { return i.Pos }
-func (i *VarExpr) At() scanner.Pos { return i.Name.Pos }
+func (i *IntExpr) exprNode()  {}
+func (v *VarExpr) exprNode()  {}
+func (c *CallExpr) exprNode() {}
+
+func (i *IntExpr) At() scanner.Pos  { return i.Pos }
+func (i *VarExpr) At() scanner.Pos  { return i.Name.Pos }
+func (c *CallExpr) At() scanner.Pos { return c.Fn.At() }
