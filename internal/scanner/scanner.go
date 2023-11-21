@@ -61,7 +61,11 @@ func (s *Scanner) Expect(tok Token, expected string) string {
 		return val
 	} else {
 		// expected different token
-		s.Diagnose(s.tok_pos, "expected %s but got %s", expected, s.tok)
+		if s.tok == IDENT {
+			s.Diagnose(s.tok_pos, "expected %s but got '%s'", expected, s.tok_val)
+		} else {
+			s.Diagnose(s.tok_pos, "expected %s but got %s", expected, s.tok)
+		}
 		return ""
 	}
 }
@@ -174,5 +178,6 @@ func (s *Scanner) scan() {
 var keywords = map[string]Token{
 	"fn":     FN,
 	"return": RETURN,
+	"struct": STRUCT,
 	"var":    VAR,
 }

@@ -2,7 +2,11 @@
 
 package gen
 
-import "github.com/justusjz/cata/internal/ast"
+import (
+	"fmt"
+
+	"github.com/justusjz/cata/internal/ast"
+)
 
 func typeEqual(left ast.TypeNode, right ast.TypeNode) bool {
 	if nl, ok := left.(*ast.NamedType); ok {
@@ -22,7 +26,13 @@ func (g *generator) genType(ty ast.TypeNode) string {
 		} else if n.Name.Ident == "bool" {
 			return "_Bool"
 		} else {
-			g.diagnose(ty.At(), "undefined type '%s'", n.Name.Ident)
+			decl := g.scope.findType(n.Name.Ident)
+			if decl == nil {
+				g.diagnose(ty.At(), "undefined type '%s'", n.Name.Ident)
+			}
+			// generate the struct
+			g.genStructDecl(decl.decl)
+			return fmt.Sprintf("struct %s", n.Name.Ident)
 		}
 	}
 	g.diagnose(ty.At(), "type kind not implemented")

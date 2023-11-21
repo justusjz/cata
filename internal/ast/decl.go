@@ -16,3 +16,11 @@ type FnDecl struct {
 	Body       []StmtNode
 	Scanner    *scanner.Scanner
 }
+
+type StructDecl struct {
+	Name    Ident
+	Fields  []Param
+	Scanner *scanner.Scanner
+	Started bool
+	Done    bool
+}

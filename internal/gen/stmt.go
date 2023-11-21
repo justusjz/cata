@@ -50,10 +50,10 @@ func (g *generator) genStmt(stmt ast.StmtNode, returnType ast.TypeNode) bool {
 		}
 		return true
 	case *ast.VarStmt:
-		if g.scope.find(s.Name.Ident) != nil {
+		if g.scope.findVar(s.Name.Ident) != nil {
 			g.diagnose(s.Name.Pos, "duplicate identifier '%s'", s.Name.Ident)
 		}
-		g.scope.add(s.Name.Ident, &scopeVar{ty: s.Type, mut: true})
+		g.scope.addVar(s.Name.Ident, &scopeVar{ty: s.Type, mut: true})
 		ty := g.genType(s.Type)
 		expr := g.genCoerce(s.Expr, s.Type)
 		g.writeIndent()

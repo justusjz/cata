@@ -12,5 +12,6 @@ type Ident struct {
 }
 
 type Module struct {
-	Fns []*FnDecl
+	Fns     []*FnDecl
+	Structs []*StructDecl
 }

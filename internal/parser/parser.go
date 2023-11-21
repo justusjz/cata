@@ -17,6 +17,21 @@ func (p *parser) parseIdent(expected string) ast.Ident {
 	return ast.Ident{Pos: pos, Ident: ident}
 }
 
+func (p *parser) parseStructExpr(ident ast.Ident) ast.ExprNode {
+	fields := []ast.ExprNode{}
+	if !p.s.Skip(scanner.RBRACE) {
+		for {
+			field := p.parseExpr("expression")
+			fields = append(fields, field)
+			if !p.s.Skip(scanner.COMMA) {
+				break
+			}
+		}
+		p.s.Expect(scanner.RBRACE, "',' or '}'")
+	}
+	return &ast.StructExpr{Struct: ident, Fields: fields}
+}
+
 func (p *parser) parseOperand(expected string) ast.ExprNode {
 	pos := p.s.Pos()
 	if p.s.Has(scanner.INT) {
@@ -24,26 +39,35 @@ func (p *parser) parseOperand(expected string) ast.ExprNode {
 		return &ast.IntExpr{Pos: pos, Val: val}
 	} else {
 		ident := p.parseIdent(expected)
+		if p.s.Skip(scanner.LBRACE) {
+			return p.parseStructExpr(ident)
+		}
 		return &ast.VarExpr{Name: ident}
 	}
 }
 
 func (p *parser) parsePrimary(expected string) ast.ExprNode {
 	expr := p.parseOperand(expected)
-	for p.s.Skip(scanner.LPAREN) {
-		// function call
-		args := []ast.ExprNode{}
-		if !p.s.Skip(scanner.RPAREN) {
-			for {
-				arg := p.parseExpr("expression")
-				args = append(args, arg)
-				if !p.s.Skip(scanner.COMMA) {
-					break
+	for p.s.Has(scanner.LPAREN) || p.s.Has(scanner.PERIOD) {
+		if p.s.Skip(scanner.LPAREN) {
+			// function call
+			args := []ast.ExprNode{}
+			if !p.s.Skip(scanner.RPAREN) {
+				for {
+					arg := p.parseExpr("expression")
+					args = append(args, arg)
+					if !p.s.Skip(scanner.COMMA) {
+						break
+					}
 				}
+				p.s.Expect(scanner.RPAREN, "',' or ')'")
 			}
-			p.s.Expect(scanner.RPAREN, "',' or ')'")
+			expr = &ast.CallExpr{Fn: expr, Args: args}
+		} else if p.s.Skip(scanner.PERIOD) {
+			// field access
+			field := p.parseIdent("identifier")
+			expr = &ast.FieldExpr{Expr: expr, Field: field}
 		}
-		expr = &ast.CallExpr{Fn: expr, Args: args}
 	}
 	return expr
 }
@@ -97,31 +121,6 @@ func (p *parser) parseBlock(expected string) []ast.StmtNode {
 	return block
 }
 
-func (p *parser) parseFnDecl() *ast.FnDecl {
-	p.s.Expect(scanner.FN, "declaration")
-	name := p.parseIdent("identifier")
-	p.s.Expect(scanner.LPAREN, "'('")
-	params := []ast.Param{}
-	if !p.s.Has(scanner.RPAREN) {
-		for {
-			paramName := p.parseIdent("identifier")
-			p.s.Expect(scanner.COLON, "':'")
-			paramType := p.parseType("type")
-			params = append(params, ast.Param{Name: paramName, Type: paramType})
-			if !p.s.Skip(scanner.COMMA) {
-				break
-			}
-		}
-	}
-	p.s.Expect(scanner.RPAREN, "')' or ','")
-	var returnType ast.TypeNode = nil
-	if !p.s.Has(scanner.LBRACE) {
-		returnType = p.parseType("type or '{'")
-	}
-	body := p.parseBlock("type or '{'")
-	return &ast.FnDecl{Name: name, Params: params, ReturnType: returnType, Body: body, Scanner: p.s}
-}
-
 func Parse(path string) *ast.Module {
 	s, err := scanner.New(path)
 	if err != nil {
@@ -130,8 +129,13 @@ func Parse(path string) *ast.Module {
 	module := &ast.Module{Fns: []*ast.FnDecl{}}
 	p := parser{s: s}
 	for !p.s.Has(scanner.EOF) {
-		fn := p.parseFnDecl()
-		module.Fns = append(module.Fns, fn)
+		if p.s.Has(scanner.FN) {
+			fn := p.parseFnDecl()
+			module.Fns = append(module.Fns, fn)
+		} else {
+			st := p.parseStructDecl()
+			module.Structs = append(module.Structs, st)
+		}
 	}
 	return module
 }

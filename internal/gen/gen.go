@@ -28,6 +28,14 @@ func (g *generator) writeIndent() {
 	}
 }
 
+func extractParamTypes(params []ast.Param) []ast.TypeNode {
+	types := []ast.TypeNode{}
+	for _, param := range params {
+		types = append(types, param.Type)
+	}
+	return types
+}
+
 func Gen(module *ast.Module, out string) error {
 	body, err := os.Create(out + ".c")
 	if err != nil {
@@ -40,18 +48,28 @@ func Gen(module *ast.Module, out string) error {
 	fmt.Fprint(header, "#include <stdint.h>\n\n")
 	fmt.Fprintf(body, "#include \"%s.h\"\n\n", out)
 	g := generator{body: body, header: header, scanner: nil, indent: 0, scope: newGlobalScope()}
+	for _, st := range module.Structs {
+		// add structs to scope
+		g.scanner = st.Scanner
+		if g.scope.findType(st.Name.Ident) != nil {
+			g.diagnose(st.Name.Pos, "duplicate identifier '%s'", st.Name.Ident)
+		}
+		g.scope.addType(st.Name.Ident, &scopeType{decl: st})
+	}
 	for _, fn := range module.Fns {
 		// add functions to scope
 		g.scanner = fn.Scanner
-		fnParams := []ast.TypeNode{}
-		for _, param := range fn.Params {
-			fnParams = append(fnParams, param.Type)
-		}
+		fnParams := extractParamTypes(fn.Params)
 		fnTy := &ast.FnType{Params: fnParams, ReturnType: fn.ReturnType}
-		if g.scope.find(fn.Name.Ident) != nil {
+		if g.scope.findVar(fn.Name.Ident) != nil {
 			g.diagnose(fn.Name.Pos, "duplicate identifier '%s'", fn.Name.Ident)
 		}
-		g.scope.add(fn.Name.Ident, &scopeVar{ty: fnTy, mut: false})
+		g.scope.addVar(fn.Name.Ident, &scopeVar{ty: fnTy, mut: false})
+	}
+	for _, st := range module.Structs {
+		// generate structs, necessary here for checking unused structs
+		g.scanner = st.Scanner
+		g.genStructDecl(st)
 	}
 	for _, fn := range module.Fns {
 		// generate functions

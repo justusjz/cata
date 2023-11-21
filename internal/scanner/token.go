@@ -31,6 +31,7 @@ const (
 
 	FN
 	RETURN
+	STRUCT
 	VAR
 )
 
@@ -65,6 +66,7 @@ var tokens = map[Token]string{
 
 	FN:     "'fn'",
 	RETURN: "'return'",
+	STRUCT: "'struct'",
 	VAR:    "'var'",
 }
 

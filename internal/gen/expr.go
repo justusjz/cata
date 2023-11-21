@@ -22,15 +22,11 @@ func (g *generator) genExpr(expr ast.ExprNode) exprResult {
 	case *ast.IntExpr:
 		return exprResult{out: e.Val, ty: i32, mut: false}
 	case *ast.VarExpr:
-		entry := g.scope.find(e.Name.Ident)
-		if entry == nil {
+		v := g.scope.findVar(e.Name.Ident)
+		if v == nil {
 			g.diagnose(e.At(), "undefined identifier '%s'", e.Name.Ident)
 		}
-		if v, ok := entry.(*scopeVar); ok {
-			return exprResult{out: e.Name.Ident, ty: v.ty, mut: v.mut}
-		} else {
-			g.diagnose(e.At(), "expected variable name")
-		}
+		return exprResult{out: e.Name.Ident, ty: v.ty, mut: v.mut}
 	case *ast.CallExpr:
 		fn := g.genExpr(e.Fn)
 		if fnTy, ok := fn.ty.(*ast.FnType); ok {
@@ -49,6 +45,38 @@ func (g *generator) genExpr(expr ast.ExprNode) exprResult {
 			g.diagnose(e.Fn.At(), "cannot call value of type 'void'")
 		} else {
 			g.diagnose(e.Fn.At(), "cannot call value of type '%s'", fn.ty)
+		}
+	case *ast.StructExpr:
+		ty := g.scope.findType(e.Struct.Ident)
+		if ty == nil {
+			g.diagnose(e.Struct.Pos, "expected struct type")
+		}
+		if len(e.Fields) != len(ty.decl.Fields) {
+			g.diagnose(e.At(), "expected %d fields, but got %d", len(ty.decl.Fields), len(e.Fields))
+		}
+		fields := []string{}
+		for i := 0; i < len(e.Fields); i++ {
+			field := g.genCoerce(e.Fields[i], ty.decl.Fields[i].Type)
+			fields = append(fields, field)
+		}
+		strFields := strings.Join(fields, ", ")
+		out := fmt.Sprintf("(struct %s){%s}", e.Struct.Ident, strFields)
+		return exprResult{out: out, ty: &ast.NamedType{Name: e.Struct}, mut: false}
+	case *ast.FieldExpr:
+		expr := g.genExpr(e.Expr)
+		if namedType, ok := expr.ty.(*ast.NamedType); ok {
+			ty := g.scope.findType(namedType.Name.Ident)
+			if ty == nil {
+				g.diagnose(e.Expr.At(), "expected expression of struct type")
+			}
+			decl := ty.decl
+			for _, field := range decl.Fields {
+				if e.Field.Ident == field.Name.Ident {
+					out := fmt.Sprintf("%s.%s", expr.out, field.Name.Ident)
+					return exprResult{out: out, ty: field.Type, mut: expr.mut}
+				}
+			}
+			g.diagnose(e.Field.Pos, "struct '%s' does not have field '%s'", decl.Name.Ident, e.Field.Ident)
 		}
 	}
 	g.diagnose(expr.At(), "expression kind is not implemented yet")

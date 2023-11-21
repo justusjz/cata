@@ -4,42 +4,58 @@ package gen
 
 import "github.com/justusjz/cata/internal/ast"
 
-type scopeEntry interface {
-	scopeEntry()
-}
-
 type scopeVar struct {
 	ty  ast.TypeNode
 	mut bool
 }
 
-func (s *scopeVar) scopeEntry() {}
+type scopeType struct {
+	decl *ast.StructDecl
+}
 
 type scope struct {
-	parent  *scope
-	entries map[string]scopeEntry
+	parent *scope
+	vars   map[string]*scopeVar
+	types  map[string]*scopeType
 }
 
 func newGlobalScope() *scope {
-	return &scope{parent: nil, entries: map[string]scopeEntry{}}
+	return &scope{parent: nil, vars: map[string]*scopeVar{}, types: map[string]*scopeType{}}
 }
 
 func newScope(parent *scope) *scope {
-	return &scope{parent: parent, entries: map[string]scopeEntry{}}
+	return &scope{parent: parent, vars: map[string]*scopeVar{}, types: map[string]*scopeType{}}
 }
 
-func (s *scope) add(name string, entry scopeEntry) {
-	if s.find(name) != nil {
-		panic("duplicate variable")
+func (s *scope) addVar(name string, v *scopeVar) {
+	if s.findVar(name) != nil {
+		panic("duplicate variable name")
 	}
-	s.entries[name] = entry
+	s.vars[name] = v
 }
 
-func (s *scope) find(name string) scopeEntry {
-	if e, ok := s.entries[name]; ok {
+func (s *scope) addType(name string, t *scopeType) {
+	if s.findType(name) != nil {
+		panic("duplicate type name")
+	}
+	s.types[name] = t
+}
+
+func (s *scope) findVar(name string) *scopeVar {
+	if e, ok := s.vars[name]; ok {
 		return e
 	} else if s.parent != nil {
-		return s.parent.find(name)
+		return s.parent.findVar(name)
+	} else {
+		return nil
+	}
+}
+
+func (s *scope) findType(name string) *scopeType {
+	if t, ok := s.types[name]; ok {
+		return t
+	} else if s.parent != nil {
+		return s.parent.findType(name)
 	} else {
 		return nil
 	}
