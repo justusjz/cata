@@ -28,7 +28,7 @@ func newScope(parent *scope) *scope {
 }
 
 func (s *scope) addVar(name string, v *scopeVar) {
-	if s.findVar(name) != nil {
+	if s.findVar(name) != nil || name == "true" || name == "false" {
 		panic("duplicate variable name")
 	}
 	s.vars[name] = v
@@ -42,6 +42,9 @@ func (s *scope) addType(name string, t *scopeType) {
 }
 
 func (s *scope) findVar(name string) *scopeVar {
+	if name == "true" || name == "false" {
+		return &scopeVar{ty: tyBool, mut: false}
+	}
 	if e, ok := s.vars[name]; ok {
 		return e
 	} else if s.parent != nil {

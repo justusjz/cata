@@ -34,7 +34,7 @@ func (g *generator) genFnDecl(fnDecl *ast.FnDecl) {
 	if !returns && fnDecl.ReturnType != nil {
 		g.diagnose(fnDecl.ReturnType.At(), "not all paths return a value")
 	}
-	fmt.Fprintln(g.body)
+	fmt.Fprint(g.body, "\n\n")
 	// reset scope
 	g.scope = g.scope.parent
 }
@@ -52,6 +52,9 @@ func (g *generator) genStructDecl(structDecl *ast.StructDecl) {
 	structDecl.Started = true
 	fields := map[string]bool{}
 	out := "struct " + structDecl.Name.Ident + " {\n"
+	if len(structDecl.Fields) == 0 {
+		g.diagnose(structDecl.Name.Pos, "struct must have at least one field")
+	}
 	for _, field := range structDecl.Fields {
 		if _, ok := fields[field.Name.Ident]; ok {
 			// check for duplicate fields

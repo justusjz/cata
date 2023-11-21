@@ -24,7 +24,7 @@ func (g *generator) diagnose(pos scanner.Pos, format string, a ...any) {
 
 func (g *generator) writeIndent() {
 	for i := 0; i < g.indent; i++ {
-		fmt.Fprint(g.body, " ")
+		fmt.Fprint(g.body, "\t")
 	}
 }
 

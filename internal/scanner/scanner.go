@@ -176,8 +176,11 @@ func (s *Scanner) scan() {
 }
 
 var keywords = map[string]Token{
+	"else":   ELSE,
 	"fn":     FN,
+	"if":     IF,
 	"return": RETURN,
 	"struct": STRUCT,
 	"var":    VAR,
+	"while":  WHILE,
 }

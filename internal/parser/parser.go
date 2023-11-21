@@ -81,46 +81,6 @@ func (p *parser) parseType(expected string) ast.TypeNode {
 	return &ast.NamedType{Name: name}
 }
 
-func (p *parser) parseStmt(expected string) ast.StmtNode {
-	pos := p.s.Pos()
-	if p.s.Skip(scanner.RETURN) {
-		if !p.s.Skip(scanner.SEMICOLON) {
-			expr := p.parseExpr("expression or ';'")
-			p.s.Expect(scanner.SEMICOLON, "';'")
-			return &ast.ReturnStmt{Pos: pos, Expr: expr}
-		} else {
-			return &ast.ReturnStmt{Pos: pos, Expr: nil}
-		}
-	} else if p.s.Skip(scanner.VAR) {
-		name := p.parseIdent("identifier")
-		p.s.Expect(scanner.COLON, "':'")
-		ty := p.parseType("type")
-		p.s.Expect(scanner.ASSIGN, "'='")
-		expr := p.parseExpr("expression")
-		p.s.Expect(scanner.SEMICOLON, "';'")
-		return &ast.VarStmt{Pos: pos, Name: name, Type: ty, Expr: expr}
-	}
-	expr := p.parseExpr(expected)
-	if p.s.Skip(scanner.ASSIGN) {
-		right := p.parseExpr("expression")
-		p.s.Expect(scanner.SEMICOLON, "';'")
-		return &ast.AssignStmt{Left: expr, Right: right}
-	} else {
-		p.s.Expect(scanner.SEMICOLON, "';' or '='")
-		return &ast.ExprStmt{Expr: expr}
-	}
-}
-
-func (p *parser) parseBlock(expected string) []ast.StmtNode {
-	p.s.Expect(scanner.LBRACE, expected)
-	block := []ast.StmtNode{}
-	for !p.s.Skip(scanner.RBRACE) {
-		stmt := p.parseStmt("statement or '}'")
-		block = append(block, stmt)
-	}
-	return block
-}
-
 func Parse(path string) *ast.Module {
 	s, err := scanner.New(path)
 	if err != nil {

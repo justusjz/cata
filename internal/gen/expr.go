@@ -9,7 +9,8 @@ import (
 	"github.com/justusjz/cata/internal/ast"
 )
 
-var i32 = &ast.NamedType{Name: ast.Ident{Ident: "i32"}}
+var tyI32 = &ast.NamedType{Name: ast.Ident{Ident: "i32"}}
+var tyBool = &ast.NamedType{Name: ast.Ident{Ident: "bool"}}
 
 type exprResult struct {
 	out string
@@ -20,13 +21,19 @@ type exprResult struct {
 func (g *generator) genExpr(expr ast.ExprNode) exprResult {
 	switch e := expr.(type) {
 	case *ast.IntExpr:
-		return exprResult{out: e.Val, ty: i32, mut: false}
+		return exprResult{out: e.Val, ty: tyI32, mut: false}
 	case *ast.VarExpr:
 		v := g.scope.findVar(e.Name.Ident)
 		if v == nil {
 			g.diagnose(e.At(), "undefined identifier '%s'", e.Name.Ident)
 		}
-		return exprResult{out: e.Name.Ident, ty: v.ty, mut: v.mut}
+		if e.Name.Ident == "true" {
+			return exprResult{out: "1", ty: v.ty, mut: v.mut}
+		} else if e.Name.Ident == "false" {
+			return exprResult{out: "0", ty: v.ty, mut: v.mut}
+		} else {
+			return exprResult{out: e.Name.Ident, ty: v.ty, mut: v.mut}
+		}
 	case *ast.CallExpr:
 		fn := g.genExpr(e.Fn)
 		if fnTy, ok := fn.ty.(*ast.FnType); ok {

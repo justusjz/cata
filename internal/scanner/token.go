@@ -29,10 +29,13 @@ const (
 
 	ASSIGN
 
+	ELSE
 	FN
+	IF
 	RETURN
 	STRUCT
 	VAR
+	WHILE
 )
 
 func (t Token) String() string {
@@ -64,10 +67,13 @@ var tokens = map[Token]string{
 
 	ASSIGN: "'='",
 
+	ELSE:   "'else'",
 	FN:     "'fn'",
+	IF:     "'if'",
 	RETURN: "'return'",
 	STRUCT: "'struct'",
 	VAR:    "'var'",
+	WHILE:  "'while'",
 }
 
 type Pos struct {
