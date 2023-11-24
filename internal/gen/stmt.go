@@ -59,8 +59,12 @@ func (g *generator) genStmt(stmt ast.StmtNode, returnType ast.TypeNode, indent b
 		}
 		g.scope.addVar(s.Name.Ident, &scopeVar{ty: s.Type, mut: true})
 		ty := g.genType(s.Type)
-		expr := g.genCoerce(s.Expr, s.Type)
-		fmt.Fprintf(g.body, "%s %s = %s;\n", ty, s.Name.Ident, expr)
+		if s.Expr != nil {
+			expr := g.genCoerce(s.Expr, s.Type)
+			fmt.Fprintf(g.body, "%s %s = %s;\n", ty, s.Name.Ident, expr)
+		} else {
+			fmt.Fprintf(g.body, "%s %s;\n", ty, s.Name.Ident)
+		}
 		return false
 	case *ast.AssignStmt:
 		left := g.genExpr(s.Left)
@@ -73,12 +77,16 @@ func (g *generator) genStmt(stmt ast.StmtNode, returnType ast.TypeNode, indent b
 	case *ast.IfStmt:
 		cond := g.genCoerce(s.Cond, tyBool)
 		fmt.Fprintf(g.body, "if (%s) ", cond)
+		g.newScope()
 		returns := g.genBlock(s.Body, returnType)
+		g.popScope()
 		if s.Else != nil {
 			fmt.Fprint(g.body, " else ")
+			g.newScope()
 			if !g.genStmt(s.Else, returnType, false) {
 				returns = false
 			}
+			g.popScope()
 		} else {
 			returns = false
 		}
@@ -90,7 +98,9 @@ func (g *generator) genStmt(stmt ast.StmtNode, returnType ast.TypeNode, indent b
 	case *ast.WhileStmt:
 		cond := g.genCoerce(s.Cond, tyBool)
 		fmt.Fprintf(g.body, "while (%s) ", cond)
+		g.newScope()
 		g.genBlock(s.Body, returnType)
+		g.popScope()
 		fmt.Fprintln(g.body)
 		return false
 	}

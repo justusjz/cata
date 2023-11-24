@@ -11,7 +11,7 @@ import (
 
 func (g *generator) genFnDecl(fnDecl *ast.FnDecl) {
 	// create new scope
-	g.scope = newScope(g.scope)
+	g.newScope()
 	returnType := "void"
 	if fnDecl.ReturnType != nil {
 		returnType = g.genType(fnDecl.ReturnType)
@@ -20,7 +20,7 @@ func (g *generator) genFnDecl(fnDecl *ast.FnDecl) {
 	for _, param := range fnDecl.Params {
 		paramType := g.genType(param.Type)
 		params = append(params, paramType+" "+param.Name.Ident)
-		// add parameters as locals
+		// add parameters to scope
 		if g.scope.findVar(param.Name.Ident) != nil {
 			g.diagnose(param.Name.Pos, "duplicate identifier '%s'", param.Name.Ident)
 		}
@@ -35,8 +35,7 @@ func (g *generator) genFnDecl(fnDecl *ast.FnDecl) {
 		g.diagnose(fnDecl.ReturnType.At(), "not all paths return a value")
 	}
 	fmt.Fprint(g.body, "\n\n")
-	// reset scope
-	g.scope = g.scope.parent
+	g.popScope()
 }
 
 func (g *generator) genStructDecl(structDecl *ast.StructDecl) {

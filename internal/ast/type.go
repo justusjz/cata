@@ -32,6 +32,7 @@ func (n *NamedType) At() scanner.Pos { return n.Name.Pos }
 func (f *FnType) At() scanner.Pos    { return f.Pos }
 
 func (n *NamedType) String() string { return n.Name.Ident }
+
 func (f *FnType) String() string {
 	params := []string{}
 	for _, param := range f.Params {

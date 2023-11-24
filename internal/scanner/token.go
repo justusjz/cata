@@ -26,6 +26,7 @@ const (
 	MINUS
 	ASTERISK
 	SLASH
+	CARET
 
 	ASSIGN
 
@@ -64,6 +65,7 @@ var tokens = map[Token]string{
 	MINUS:    "'-'",
 	ASTERISK: "'*'",
 	SLASH:    "'/'",
+	CARET:    "'^'",
 
 	ASSIGN: "'='",
 

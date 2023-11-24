@@ -72,13 +72,21 @@ func (p *parser) parsePrimary(expected string) ast.ExprNode {
 	return expr
 }
 
-func (p *parser) parseExpr(expected string) ast.ExprNode {
+func (p *parser) parseUnary(expected string) ast.ExprNode {
 	return p.parsePrimary(expected)
 }
 
-func (p *parser) parseType(expected string) ast.TypeNode {
+func (p *parser) parseExpr(expected string) ast.ExprNode {
+	return p.parseUnary(expected)
+}
+
+func (p *parser) parseBasicType(expected string) ast.TypeNode {
 	name := p.parseIdent(expected)
 	return &ast.NamedType{Name: name}
+}
+
+func (p *parser) parseType(expected string) ast.TypeNode {
+	return p.parseBasicType(expected)
 }
 
 func Parse(path string) *ast.Module {

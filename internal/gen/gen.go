@@ -28,6 +28,14 @@ func (g *generator) writeIndent() {
 	}
 }
 
+func (g *generator) newScope() {
+	g.scope = newScope(g.scope)
+}
+
+func (g *generator) popScope() {
+	g.scope = g.scope.parent
+}
+
 func extractParamTypes(params []ast.Param) []ast.TypeNode {
 	types := []ast.TypeNode{}
 	for _, param := range params {

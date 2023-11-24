@@ -52,9 +52,13 @@ func (p *parser) parseStmt(expected string) ast.StmtNode {
 		name := p.parseIdent("identifier")
 		p.s.Expect(scanner.COLON, "':'")
 		ty := p.parseType("type")
-		p.s.Expect(scanner.ASSIGN, "'='")
-		expr := p.parseExpr("expression")
-		p.s.Expect(scanner.SEMICOLON, "';'")
+		var expr ast.ExprNode = nil
+		if p.s.Skip(scanner.ASSIGN) {
+			expr = p.parseExpr("expression")
+			p.s.Expect(scanner.SEMICOLON, "';'")
+		} else {
+			p.s.Expect(scanner.SEMICOLON, "'=' or ';'")
+		}
 		return &ast.VarStmt{Pos: pos, Name: name, Type: ty, Expr: expr}
 	} else if p.s.Has(scanner.IF) {
 		return p.parseIfStmt()

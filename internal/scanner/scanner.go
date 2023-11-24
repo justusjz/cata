@@ -167,10 +167,12 @@ func (s *Scanner) scan() {
 			} else {
 				s.tok = SLASH
 			}
+		case '^':
+			s.tok = CARET
 		case '=':
 			s.tok = ASSIGN
 		default:
-			s.Diagnose(s.tok_pos, "invalid character '%c'", s.content[s.pos])
+			s.Diagnose(s.tok_pos, "invalid character '%c'", s.content[s.pos-1])
 		}
 	}
 }
