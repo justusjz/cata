@@ -13,3 +13,29 @@ Currently, Cata is not yet usable. The compiler is written in Go, is not
 optimized, generates only C code (which makes compilation slow), and does not
 provide good error diagnostics. As soon as the compiler works well enough, it
 will be rewritten in Cata itself.
+
+# Roadmap
+The current language implementation:
+- [x] Basic language features, variables, function calls
+- [x] Structs
+- [x] Control flow
+- [x] Linear types
+- [ ] Drop insertion
+- [ ] Generics
+- [ ] Borrowing
+- [ ] Built-in operators
+- [ ] Arrays and slices
+- [ ] C interop
+- [ ] Enums and unions
+- [ ] Error handling
+- [ ] Struct functions
+- [ ] Interfaces
+- [ ] Ergonomic improvements
+
+Long-term language goals:
+- [ ] The current compiler
+- [ ] Standard library
+- [ ] Self-hosted compiler
+- [ ] Language specification
+- [ ] More compilation targets
+- [ ] Tooling

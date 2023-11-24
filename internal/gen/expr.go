@@ -18,7 +18,6 @@ type exprResult struct {
 	mut bool
 }
 
-// TODO: actually perform the consume and revive operations, and the necessary checks
 func (g *generator) genExpr(expr ast.ExprNode, consume bool, revive bool) exprResult {
 	switch e := expr.(type) {
 	case *ast.IntExpr:
