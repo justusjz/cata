@@ -18,7 +18,8 @@ type exprResult struct {
 	mut bool
 }
 
-func (g *generator) genExpr(expr ast.ExprNode) exprResult {
+// TODO: actually perform the consume and revive operations, and the necessary checks
+func (g *generator) genExpr(expr ast.ExprNode, consume bool, revive bool) exprResult {
 	switch e := expr.(type) {
 	case *ast.IntExpr:
 		return exprResult{out: e.Val, ty: tyI32, mut: false}
@@ -32,17 +33,32 @@ func (g *generator) genExpr(expr ast.ExprNode) exprResult {
 		} else if e.Name.Ident == "false" {
 			return exprResult{out: "0", ty: v.ty, mut: v.mut}
 		} else {
+			if revive {
+				g.liveness.makeAlive(e.Name.Ident)
+			}
+			if !g.liveness.isAlive(e.Name.Ident) {
+				g.diagnose(e.At(), "'%s' is not initialized", e.Name.Ident)
+			}
+			if consume && g.isLinear(v.ty) {
+				if !v.mut {
+					g.diagnose(e.At(), "cannot consume constant value '%s'", e.Name.Ident)
+				}
+				if !g.liveness.isOwned(e.Name.Ident) {
+					g.diagnose(e.At(), "cannot consume '%s' here", e.Name.Ident)
+				}
+				g.liveness.makeDead(e.Name.Ident)
+			}
 			return exprResult{out: e.Name.Ident, ty: v.ty, mut: v.mut}
 		}
 	case *ast.CallExpr:
-		fn := g.genExpr(e.Fn)
+		fn := g.genExpr(e.Fn, false, false)
 		if fnTy, ok := fn.ty.(*ast.FnType); ok {
 			if len(e.Args) != len(fnTy.Params) {
 				g.diagnose(e.At(), "expected %d arguments, but got %d", len(fnTy.Params), len(e.Args))
 			}
 			args := []string{}
 			for i := 0; i < len(e.Args); i++ {
-				arg := g.genCoerce(e.Args[i], fnTy.Params[i])
+				arg := g.genCoerce(e.Args[i], fnTy.Params[i], true)
 				args = append(args, arg)
 			}
 			strArgs := strings.Join(args, ", ")
@@ -63,14 +79,14 @@ func (g *generator) genExpr(expr ast.ExprNode) exprResult {
 		}
 		fields := []string{}
 		for i := 0; i < len(e.Fields); i++ {
-			field := g.genCoerce(e.Fields[i], ty.decl.Fields[i].Type)
+			field := g.genCoerce(e.Fields[i], ty.decl.Fields[i].Type, true)
 			fields = append(fields, field)
 		}
 		strFields := strings.Join(fields, ", ")
 		out := fmt.Sprintf("(struct %s){%s}", e.Struct.Ident, strFields)
 		return exprResult{out: out, ty: &ast.NamedType{Name: e.Struct}, mut: false}
 	case *ast.FieldExpr:
-		expr := g.genExpr(e.Expr)
+		expr := g.genExpr(e.Expr, false, false)
 		if namedType, ok := expr.ty.(*ast.NamedType); ok {
 			ty := g.scope.findType(namedType.Name.Ident)
 			if ty == nil {
@@ -79,6 +95,9 @@ func (g *generator) genExpr(expr ast.ExprNode) exprResult {
 			decl := ty.decl
 			for _, field := range decl.Fields {
 				if e.Field.Ident == field.Name.Ident {
+					if consume && g.isLinear(field.Type) {
+						g.diagnose(e.Field.Pos, "cannot consume struct field '%s'", e.Field.Ident)
+					}
 					out := fmt.Sprintf("%s.%s", expr.out, field.Name.Ident)
 					return exprResult{out: out, ty: field.Type, mut: expr.mut}
 				}
@@ -90,8 +109,8 @@ func (g *generator) genExpr(expr ast.ExprNode) exprResult {
 	return exprResult{}
 }
 
-func (g *generator) genCoerce(expr ast.ExprNode, ty ast.TypeNode) string {
-	result := g.genExpr(expr)
+func (g *generator) genCoerce(expr ast.ExprNode, ty ast.TypeNode, consume bool) string {
+	result := g.genExpr(expr, consume, false)
 	if result.ty == nil {
 		g.diagnose(expr.At(), "expression does not have a value")
 	}

@@ -31,7 +31,7 @@ func (g *generator) genStmt(stmt ast.StmtNode, returnType ast.TypeNode, indent b
 	switch s := stmt.(type) {
 	case *ast.ExprStmt:
 		if e, ok := s.Expr.(*ast.CallExpr); ok {
-			expr := g.genExpr(e)
+			expr := g.genExpr(e, false, false)
 			fmt.Fprintf(g.body, "%s;\n", expr.out)
 		} else {
 			g.diagnose(s.Expr.At(), "expression cannot be used as statement")
@@ -49,7 +49,7 @@ func (g *generator) genStmt(stmt ast.StmtNode, returnType ast.TypeNode, indent b
 		if returnType == nil {
 			fmt.Fprint(g.body, "return;\n")
 		} else {
-			expr := g.genCoerce(s.Expr, returnType)
+			expr := g.genCoerce(s.Expr, returnType, true)
 			fmt.Fprintf(g.body, "return %s;\n", expr)
 		}
 		return true
@@ -57,32 +57,44 @@ func (g *generator) genStmt(stmt ast.StmtNode, returnType ast.TypeNode, indent b
 		if g.scope.findVar(s.Name.Ident) != nil {
 			g.diagnose(s.Name.Pos, "duplicate identifier '%s'", s.Name.Ident)
 		}
+		// add var to scope
 		g.scope.addVar(s.Name.Ident, &scopeVar{ty: s.Type, mut: true})
 		ty := g.genType(s.Type)
 		if s.Expr != nil {
-			expr := g.genCoerce(s.Expr, s.Type)
+			expr := g.genCoerce(s.Expr, s.Type, true)
 			fmt.Fprintf(g.body, "%s %s = %s;\n", ty, s.Name.Ident, expr)
+			// mark variable as initialized
+			g.liveness.makeAlive(s.Name.Ident)
 		} else {
 			fmt.Fprintf(g.body, "%s %s;\n", ty, s.Name.Ident)
+			// mark variable as not initialized
+			g.liveness.makeDead(s.Name.Ident)
 		}
 		return false
 	case *ast.AssignStmt:
-		left := g.genExpr(s.Left)
+		// left side is marked alive by genExpr
+		left := g.genExpr(s.Left, false, true)
 		if !left.mut {
 			g.diagnose(s.Left.At(), "cannot assign to constant value")
 		}
-		right := g.genCoerce(s.Right, left.ty)
+		right := g.genCoerce(s.Right, left.ty, true)
 		fmt.Fprintf(g.body, "%s = %s;\n", left.out, right)
 		return false
 	case *ast.IfStmt:
-		cond := g.genCoerce(s.Cond, tyBool)
+		cond := g.genCoerce(s.Cond, tyBool, false)
 		fmt.Fprintf(g.body, "if (%s) ", cond)
 		g.newScope()
+		thenLiveness := g.liveness.cloneLiveness()
+		elseLiveness := g.liveness.cloneLiveness()
+		// use liveness for 'then' branch
+		g.liveness = thenLiveness
 		returns := g.genBlock(s.Body, returnType)
 		g.popScope()
 		if s.Else != nil {
 			fmt.Fprint(g.body, " else ")
 			g.newScope()
+			// use liveness for 'else' branch
+			g.liveness = elseLiveness
 			if !g.genStmt(s.Else, returnType, false) {
 				returns = false
 			}
@@ -90,17 +102,27 @@ func (g *generator) genStmt(stmt ast.StmtNode, returnType ast.TypeNode, indent b
 		} else {
 			returns = false
 		}
+		// merge liveness for the variables in the current scope
+		// TODO: insert destructor calls
+		g.liveness = mergeLiveness(g.scope, thenLiveness, elseLiveness)
 		if indent {
 			// only print newline if not in if stmt
 			fmt.Fprintln(g.body)
 		}
 		return returns
 	case *ast.WhileStmt:
-		cond := g.genCoerce(s.Cond, tyBool)
+		cond := g.genCoerce(s.Cond, tyBool, false)
 		fmt.Fprintf(g.body, "while (%s) ", cond)
 		g.newScope()
+		outerLiveness := g.liveness
+		// create sub liveness that does not own the outer variables
+		whileLiveness := newLiveness(outerLiveness)
+		g.liveness = whileLiveness
 		g.genBlock(s.Body, returnType)
 		g.popScope()
+		// liveness still has to be merged, since the loop could consume
+		// outer variables it initialized itself
+		g.liveness = mergeLiveness(g.scope, outerLiveness, whileLiveness)
 		fmt.Fprintln(g.body)
 		return false
 	}
