@@ -23,5 +23,4 @@ type StructDecl struct {
 	Scanner *scanner.Scanner
 	Started bool
 	Done    bool
-	Linear  bool
 }

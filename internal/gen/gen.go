@@ -11,12 +11,11 @@ import (
 )
 
 type generator struct {
-	body     *os.File
-	header   *os.File
-	scanner  *scanner.Scanner
-	indent   int
-	scope    *scope
-	liveness *liveness
+	body    *os.File
+	header  *os.File
+	scanner *scanner.Scanner
+	indent  int
+	scope   *scope
 }
 
 func (g *generator) diagnose(pos scanner.Pos, format string, a ...any) {
@@ -35,14 +34,6 @@ func (g *generator) newScope() {
 
 func (g *generator) popScope() {
 	g.scope = g.scope.parent
-}
-
-func (g *generator) newLiveness() {
-	g.liveness = newLiveness(g.liveness)
-}
-
-func (g *generator) popLiveness() {
-	g.liveness = g.liveness.parent
 }
 
 func extractParamTypes(params []ast.Param) []ast.TypeNode {
@@ -64,7 +55,7 @@ func Gen(module *ast.Module, out string) error {
 	}
 	fmt.Fprint(header, "#include <stdint.h>\n\n")
 	fmt.Fprintf(body, "#include \"%s.h\"\n\n", out)
-	g := generator{body: body, header: header, scanner: nil, indent: 0, scope: newGlobalScope(), liveness: newLiveness(nil)}
+	g := generator{body: body, header: header, scanner: nil, indent: 0, scope: newGlobalScope()}
 	for _, st := range module.Structs {
 		// add structs to scope
 		g.scanner = st.Scanner
@@ -74,7 +65,7 @@ func Gen(module *ast.Module, out string) error {
 		g.scope.addType(st.Name.Ident, &scopeType{decl: st})
 	}
 	for _, fn := range module.Fns {
-		// add functions to scope and liveness
+		// add functions to scope
 		g.scanner = fn.Scanner
 		fnParams := extractParamTypes(fn.Params)
 		fnTy := &ast.FnType{Params: fnParams, ReturnType: fn.ReturnType}
@@ -82,7 +73,6 @@ func Gen(module *ast.Module, out string) error {
 			g.diagnose(fn.Name.Pos, "duplicate identifier '%s'", fn.Name.Ident)
 		}
 		g.scope.addVar(fn.Name.Ident, &scopeVar{ty: fnTy, mut: false})
-		g.liveness.makeAlive(fn.Name.Ident)
 	}
 	for _, st := range module.Structs {
 		// generate structs, necessary here for checking unused structs

@@ -12,7 +12,6 @@ import (
 func (g *generator) genFnDecl(fnDecl *ast.FnDecl) {
 	// create new scope
 	g.newScope()
-	g.newLiveness()
 	returnType := "void"
 	if fnDecl.ReturnType != nil {
 		returnType = g.genType(fnDecl.ReturnType)
@@ -21,12 +20,11 @@ func (g *generator) genFnDecl(fnDecl *ast.FnDecl) {
 	for _, param := range fnDecl.Params {
 		paramType := g.genType(param.Type)
 		params = append(params, paramType+" "+param.Name.Ident)
-		// add parameters to scope and liveness
+		// add parameters to scope
 		if g.scope.findVar(param.Name.Ident) != nil {
 			g.diagnose(param.Name.Pos, "duplicate identifier '%s'", param.Name.Ident)
 		}
-		g.scope.addVar(param.Name.Ident, &scopeVar{ty: param.Type, mut: true})
-		g.liveness.makeAlive(param.Name.Ident)
+		g.scope.addVar(param.Name.Ident, &scopeVar{ty: param.Type, mut: false})
 	}
 	strParams := strings.Join(params, ", ")
 	signature := fmt.Sprintf("%s %s(%s)", returnType, fnDecl.Name.Ident, strParams)
@@ -37,7 +35,6 @@ func (g *generator) genFnDecl(fnDecl *ast.FnDecl) {
 		g.diagnose(fnDecl.ReturnType.At(), "not all paths return a value")
 	}
 	fmt.Fprint(g.body, "\n\n")
-	g.popLiveness()
 	g.popScope()
 }
 

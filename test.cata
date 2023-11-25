@@ -1,19 +1,10 @@
-struct ls: linear {
-    a: i32
+struct my_type {
+    a: i32,
+    b: i32
 }
 
-struct ls2 {
-    l: ls
-}
-
-fn use2(l2: ls2) i32 {
-    var l: ls2 = l2;
-    return l.l.a;
-}
-
-fn test_liveness(a: bool) i32 {
-    var s: ls = ls{7};
-    var s2: ls2 = ls2{s};
-    var s3: ls2 = s2;
-    return use2(s3);
+fn test(a: bool) i32 {
+    var m: my_type;
+    m = my_type{3, 4};
+    return m.a;
 }

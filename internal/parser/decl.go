@@ -27,18 +27,9 @@ func (p *parser) parseParams(end scanner.Token) []ast.Param {
 func (p *parser) parseStructDecl() *ast.StructDecl {
 	p.s.Expect(scanner.STRUCT, "declaration")
 	name := p.parseIdent("identifier")
-	isLinear := false
-	if p.s.Skip(scanner.COLON) {
-		pos := p.s.Pos()
-		linear := p.s.Expect(scanner.IDENT, "'linear'")
-		if linear != "linear" {
-			p.s.Diagnose(pos, "expected 'linear'")
-		}
-		isLinear = true
-	}
 	p.s.Expect(scanner.LBRACE, "'{'")
 	fields := p.parseParams(scanner.RBRACE)
-	return &ast.StructDecl{Name: name, Fields: fields, Scanner: p.s, Started: false, Done: false, Linear: isLinear}
+	return &ast.StructDecl{Name: name, Fields: fields, Scanner: p.s, Started: false, Done: false}
 }
 
 func (p *parser) parseFnDecl() *ast.FnDecl {

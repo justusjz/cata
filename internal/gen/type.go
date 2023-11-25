@@ -38,27 +38,3 @@ func (g *generator) genType(ty ast.TypeNode) string {
 	g.diagnose(ty.At(), "type kind not implemented")
 	return ""
 }
-
-func (g *generator) isLinear(ty ast.TypeNode) bool {
-	if _, ok := ty.(*ast.FnType); ok {
-		return false
-	}
-	if n, ok := ty.(*ast.NamedType); ok {
-		if n.Name.Ident == "i32" || n.Name.Ident == "bool" {
-			return false
-		}
-		decl := g.scope.findType(n.Name.Ident)
-		if decl.decl.Linear {
-			// the struct itself is linear
-			return true
-		}
-		for _, field := range decl.decl.Fields {
-			if g.isLinear(field.Type) {
-				// one of the fields is linear
-				return true
-			}
-		}
-		return false
-	}
-	panic("type kind not implemented")
-}
