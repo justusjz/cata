@@ -19,16 +19,20 @@ The current language implementation:
 - [x] Basic language features, variables, function calls
 - [x] Structs
 - [x] Control flow
-- [ ] Generics
-- [ ] Borrowing
-- [ ] Arrays and slices
+- [x] Generic types
+- [ ] Slices
 - [ ] C interop
+- [ ] Generic functions
+- [ ] Const generics
+- [ ] Arrays
+- [ ] Borrowing
 - [ ] Enums and unions
 - [ ] Error handling
 - [ ] Struct functions
 - [ ] Movable types
 - [ ] Interfaces
 - [ ] Built-in operators
+- [ ] Modules
 - [ ] Ergonomic improvements
 
 Long-term language goals:

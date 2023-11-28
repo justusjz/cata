@@ -9,39 +9,49 @@ import (
 	"github.com/justusjz/cata/internal/scanner"
 )
 
-type TypeNode interface {
-	typeNode()
-	At() scanner.Pos
+type Type interface {
+	ty()
 	String() string
 }
 
 type NamedType struct {
 	Name Ident
+	Args []*NamedType
 }
 
 type FnType struct {
-	Pos        scanner.Pos
-	Params     []TypeNode
-	ReturnType TypeNode
+	Params []*NamedType
+	Return *NamedType
 }
 
-func (n *NamedType) typeNode() {}
-func (f *FnType) typeNode()    {}
+var Int32 = &NamedType{Name: Ident{Ident: "i32"}}
+var Bool = &NamedType{Name: Ident{Ident: "bool"}}
 
 func (n *NamedType) At() scanner.Pos { return n.Name.Pos }
-func (f *FnType) At() scanner.Pos    { return f.Pos }
+func (n *NamedType) ty()             {}
 
-func (n *NamedType) String() string { return n.Name.Ident }
+func (n *NamedType) String() string {
+	if len(n.Args) == 0 {
+		return n.Name.Ident
+	}
+	args := []string{}
+	for _, arg := range n.Args {
+		args = append(args, arg.String())
+	}
+	return fmt.Sprintf("%s[%s]", n.Name.Ident, strings.Join(args, ", "))
+}
+
+func (f *FnType) ty() {}
 
 func (f *FnType) String() string {
 	params := []string{}
 	for _, param := range f.Params {
 		params = append(params, param.String())
 	}
-	strParams := strings.Join(params, ", ")
-	if f.ReturnType != nil {
-		return fmt.Sprintf("fn (%s) %s", strParams, f.ReturnType)
+	result := "fn (" + strings.Join(params, ", ") + ")"
+	if f.Return != nil {
+		return result + " " + f.Return.String()
 	} else {
-		return fmt.Sprintf("fn (%s)", strParams)
+		return result
 	}
 }

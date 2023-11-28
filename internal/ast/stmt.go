@@ -26,7 +26,7 @@ type ReturnStmt struct {
 type VarStmt struct {
 	Pos  scanner.Pos
 	Name Ident
-	Type TypeNode
+	Type *NamedType
 	Expr ExprNode
 }
 

@@ -23,24 +23,17 @@ type CallExpr struct {
 	Args []ExprNode
 }
 
-type StructExpr struct {
-	Struct Ident
-	Fields []ExprNode
-}
-
 type FieldExpr struct {
 	Expr  ExprNode
 	Field Ident
 }
 
-func (i *IntExpr) exprNode()    {}
-func (v *VarExpr) exprNode()    {}
-func (c *CallExpr) exprNode()   {}
-func (s *StructExpr) exprNode() {}
-func (f *FieldExpr) exprNode()  {}
+func (i *IntExpr) exprNode()   {}
+func (v *VarExpr) exprNode()   {}
+func (c *CallExpr) exprNode()  {}
+func (f *FieldExpr) exprNode() {}
 
-func (i *IntExpr) At() scanner.Pos    { return i.Pos }
-func (i *VarExpr) At() scanner.Pos    { return i.Name.Pos }
-func (c *CallExpr) At() scanner.Pos   { return c.Fn.At() }
-func (s *StructExpr) At() scanner.Pos { return s.Struct.Pos }
-func (f *FieldExpr) At() scanner.Pos  { return f.Expr.At() }
+func (i *IntExpr) At() scanner.Pos   { return i.Pos }
+func (i *VarExpr) At() scanner.Pos   { return i.Name.Pos }
+func (c *CallExpr) At() scanner.Pos  { return c.Fn.At() }
+func (f *FieldExpr) At() scanner.Pos { return f.Expr.At() }

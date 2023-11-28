@@ -27,9 +27,21 @@ func (p *parser) parseParams(end scanner.Token) []ast.Param {
 func (p *parser) parseStructDecl() *ast.StructDecl {
 	p.s.Expect(scanner.STRUCT, "declaration")
 	name := p.parseIdent("identifier")
+	params := []ast.Ident{}
+	if p.s.Skip(scanner.LBRACKET) {
+		// generic parameters
+		for {
+			param := p.parseIdent("identifier")
+			params = append(params, param)
+			if !p.s.Skip(scanner.COMMA) {
+				break
+			}
+		}
+		p.s.Expect(scanner.RBRACKET, "']'")
+	}
 	p.s.Expect(scanner.LBRACE, "'{'")
 	fields := p.parseParams(scanner.RBRACE)
-	return &ast.StructDecl{Name: name, Fields: fields, Scanner: p.s, Started: false, Done: false}
+	return &ast.StructDecl{Name: name, Params: params, Fields: fields, Scanner: p.s, Started: false, Done: false}
 }
 
 func (p *parser) parseFnDecl() *ast.FnDecl {
@@ -37,10 +49,10 @@ func (p *parser) parseFnDecl() *ast.FnDecl {
 	name := p.parseIdent("identifier")
 	p.s.Expect(scanner.LPAREN, "'('")
 	params := p.parseParams(scanner.RPAREN)
-	var returnType ast.TypeNode = nil
+	var ret *ast.NamedType = nil
 	if !p.s.Has(scanner.LBRACE) {
-		returnType = p.parseType("type or '{'")
+		ret = p.parseType("type or '{'")
 	}
 	body := p.parseBlock("type or '{'")
-	return &ast.FnDecl{Name: name, Params: params, ReturnType: returnType, Body: body, Scanner: p.s}
+	return &ast.FnDecl{Name: name, Params: params, Return: ret, Body: body, Scanner: p.s}
 }

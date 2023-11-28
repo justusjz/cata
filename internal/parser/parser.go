@@ -17,21 +17,6 @@ func (p *parser) parseIdent(expected string) ast.Ident {
 	return ast.Ident{Pos: pos, Ident: ident}
 }
 
-func (p *parser) parseStructExpr(ident ast.Ident) ast.ExprNode {
-	fields := []ast.ExprNode{}
-	if !p.s.Skip(scanner.RBRACE) {
-		for {
-			field := p.parseExpr("expression")
-			fields = append(fields, field)
-			if !p.s.Skip(scanner.COMMA) {
-				break
-			}
-		}
-		p.s.Expect(scanner.RBRACE, "',' or '}'")
-	}
-	return &ast.StructExpr{Struct: ident, Fields: fields}
-}
-
 func (p *parser) parseOperand(expected string) ast.ExprNode {
 	pos := p.s.Pos()
 	if p.s.Has(scanner.INT) {
@@ -39,9 +24,6 @@ func (p *parser) parseOperand(expected string) ast.ExprNode {
 		return &ast.IntExpr{Pos: pos, Val: val}
 	} else {
 		ident := p.parseIdent(expected)
-		if p.s.Skip(scanner.LBRACE) {
-			return p.parseStructExpr(ident)
-		}
 		return &ast.VarExpr{Name: ident}
 	}
 }
@@ -78,15 +60,6 @@ func (p *parser) parseUnary(expected string) ast.ExprNode {
 
 func (p *parser) parseExpr(expected string) ast.ExprNode {
 	return p.parseUnary(expected)
-}
-
-func (p *parser) parseBasicType(expected string) ast.TypeNode {
-	name := p.parseIdent(expected)
-	return &ast.NamedType{Name: name}
-}
-
-func (p *parser) parseType(expected string) ast.TypeNode {
-	return p.parseBasicType(expected)
 }
 
 func Parse(path string) *ast.Module {

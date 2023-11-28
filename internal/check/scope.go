@@ -1,30 +1,30 @@
 // Copyright (c) 2023 Justus Zorn
 
-package gen
+package check
 
-import "github.com/justusjz/cata/internal/ast"
+import (
+	"github.com/justusjz/cata/internal/ast"
+)
 
 type scopeVar struct {
-	ty  ast.TypeNode
+	ty  ast.Type
 	mut bool
-}
-
-type scopeType struct {
-	decl *ast.StructDecl
 }
 
 type scope struct {
 	parent *scope
 	vars   map[string]*scopeVar
-	types  map[string]*scopeType
+	types  map[string]*GenericType
 }
 
 func newGlobalScope() *scope {
-	return &scope{parent: nil, vars: map[string]*scopeVar{}, types: map[string]*scopeType{}}
+	return &scope{parent: nil, vars: map[string]*scopeVar{}, types: map[string]*GenericType{}}
 }
 
 func newScope(parent *scope) *scope {
-	return &scope{parent: parent, vars: map[string]*scopeVar{}, types: map[string]*scopeType{}}
+	new := newGlobalScope()
+	new.parent = parent
+	return new
 }
 
 func (s *scope) addVar(name string, v *scopeVar) {
@@ -34,7 +34,7 @@ func (s *scope) addVar(name string, v *scopeVar) {
 	s.vars[name] = v
 }
 
-func (s *scope) addType(name string, t *scopeType) {
+func (s *scope) addType(name string, t *GenericType) {
 	if s.findType(name) != nil {
 		panic("duplicate type name")
 	}
@@ -43,7 +43,7 @@ func (s *scope) addType(name string, t *scopeType) {
 
 func (s *scope) findVar(name string) *scopeVar {
 	if name == "true" || name == "false" {
-		return &scopeVar{ty: tyBool, mut: false}
+		return &scopeVar{ty: ast.Bool, mut: false}
 	}
 	if e, ok := s.vars[name]; ok {
 		return e
@@ -54,7 +54,7 @@ func (s *scope) findVar(name string) *scopeVar {
 	}
 }
 
-func (s *scope) findType(name string) *scopeType {
+func (s *scope) findType(name string) *GenericType {
 	if t, ok := s.types[name]; ok {
 		return t
 	} else if s.parent != nil {
