@@ -45,14 +45,23 @@ func (p *parser) parseStructDecl() *ast.StructDecl {
 }
 
 func (p *parser) parseFnDecl() *ast.FnDecl {
+	extern := p.s.Skip(scanner.EXTERN)
 	p.s.Expect(scanner.FN, "declaration")
 	name := p.parseIdent("identifier")
 	p.s.Expect(scanner.LPAREN, "'('")
 	params := p.parseParams(scanner.RPAREN)
 	var ret *ast.NamedType = nil
-	if !p.s.Has(scanner.LBRACE) {
-		ret = p.parseType("type or '{'")
+	if extern {
+		if !p.s.Skip(scanner.SEMICOLON) {
+			ret = p.parseType("type or ';'")
+			p.s.Expect(scanner.SEMICOLON, "';'")
+		}
+		return &ast.FnDecl{Name: name, Params: params, Return: ret, Scanner: p.s}
+	} else {
+		if !p.s.Has(scanner.LBRACE) {
+			ret = p.parseType("type or '{'")
+		}
+		body := p.parseBlock("type or '{'")
+		return &ast.FnDecl{Name: name, Params: params, Return: ret, Body: body, Scanner: p.s}
 	}
-	body := p.parseBlock("type or '{'")
-	return &ast.FnDecl{Name: name, Params: params, Return: ret, Body: body, Scanner: p.s}
 }

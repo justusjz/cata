@@ -22,6 +22,9 @@ func (p *parser) parseOperand(expected string) ast.ExprNode {
 	if p.s.Has(scanner.INT) {
 		val := p.s.Expect(scanner.INT, "")
 		return &ast.IntExpr{Pos: pos, Val: val}
+	} else if p.s.Has(scanner.STRING) {
+		val := p.s.Expect(scanner.STRING, "")
+		return &ast.StringExpr{Pos: pos, Val: val}
 	} else {
 		ident := p.parseIdent(expected)
 		return &ast.VarExpr{Name: ident}
@@ -70,7 +73,7 @@ func Parse(path string) *ast.Module {
 	module := &ast.Module{Fns: []*ast.FnDecl{}}
 	p := parser{s: s}
 	for !p.s.Has(scanner.EOF) {
-		if p.s.Has(scanner.FN) {
+		if p.s.Has(scanner.FN) || p.s.Has(scanner.EXTERN) {
 			fn := p.parseFnDecl()
 			module.Fns = append(module.Fns, fn)
 		} else {

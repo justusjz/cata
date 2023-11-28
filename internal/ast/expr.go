@@ -14,6 +14,11 @@ type IntExpr struct {
 	Val string
 }
 
+type StringExpr struct {
+	Pos scanner.Pos
+	Val string
+}
+
 type VarExpr struct {
 	Name Ident
 }
@@ -28,12 +33,14 @@ type FieldExpr struct {
 	Field Ident
 }
 
-func (i *IntExpr) exprNode()   {}
-func (v *VarExpr) exprNode()   {}
-func (c *CallExpr) exprNode()  {}
-func (f *FieldExpr) exprNode() {}
+func (i *IntExpr) exprNode()    {}
+func (s *StringExpr) exprNode() {}
+func (v *VarExpr) exprNode()    {}
+func (c *CallExpr) exprNode()   {}
+func (f *FieldExpr) exprNode()  {}
 
-func (i *IntExpr) At() scanner.Pos   { return i.Pos }
-func (i *VarExpr) At() scanner.Pos   { return i.Name.Pos }
-func (c *CallExpr) At() scanner.Pos  { return c.Fn.At() }
-func (f *FieldExpr) At() scanner.Pos { return f.Expr.At() }
+func (i *IntExpr) At() scanner.Pos    { return i.Pos }
+func (s *StringExpr) At() scanner.Pos { return s.Pos }
+func (i *VarExpr) At() scanner.Pos    { return i.Name.Pos }
+func (c *CallExpr) At() scanner.Pos   { return c.Fn.At() }
+func (f *FieldExpr) At() scanner.Pos  { return f.Expr.At() }

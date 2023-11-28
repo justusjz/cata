@@ -1,9 +1,6 @@
-struct test[eltype] {
-    a: eltype
-}
+extern fn print(s: slice[u8]);
 
-fn test() i32 {
-    var t: test[i32];
-    t.a = 7;
-    return t.a;
+fn main() {
+    var s: slice[u8] = "Hello, world!\n";
+    print(s);
 }

@@ -9,6 +9,7 @@ const (
 	COMMENT
 	IDENT
 	INT
+	STRING
 
 	LPAREN
 	RPAREN
@@ -31,6 +32,7 @@ const (
 	ASSIGN
 
 	ELSE
+	EXTERN
 	FN
 	IF
 	RETURN
@@ -48,6 +50,7 @@ var tokens = map[Token]string{
 	COMMENT: "comment",
 	IDENT:   "identifier",
 	INT:     "integer literal",
+	STRING:  "string literal",
 
 	LPAREN:   "'('",
 	RPAREN:   "')'",
@@ -70,6 +73,7 @@ var tokens = map[Token]string{
 	ASSIGN: "'='",
 
 	ELSE:   "'else'",
+	EXTERN: "'extern'",
 	FN:     "'fn'",
 	IF:     "'if'",
 	RETURN: "'return'",

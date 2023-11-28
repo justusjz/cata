@@ -15,6 +15,8 @@ func (c *checker) checkExpr(expr ast.ExprNode) result {
 	switch e := expr.(type) {
 	case *ast.IntExpr:
 		return result{ty: ast.Int32, mut: false}
+	case *ast.StringExpr:
+		return result{ty: ast.SliceType(ast.Uint8), mut: false}
 	case *ast.VarExpr:
 		v := c.scope.findVar(e.Name.Ident)
 		if v == nil {
@@ -47,7 +49,7 @@ func (c *checker) checkExpr(expr ast.ExprNode) result {
 		}
 		return result{ty: field, mut: expr.mut}
 	}
-	return result{}
+	panic("expression kind not implemented")
 }
 
 func (c *checker) checkCoerce(expr ast.ExprNode, ty ast.Type) {

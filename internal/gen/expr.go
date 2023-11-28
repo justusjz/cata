@@ -13,6 +13,9 @@ func (g *generator) genExpr(expr ast.ExprNode) string {
 	switch e := expr.(type) {
 	case *ast.IntExpr:
 		return e.Val
+	case *ast.StringExpr:
+		ty := g.genType(ast.SliceType(ast.Uint8))
+		return fmt.Sprintf("(%s){\"%s\", %d}", ty, e.Val, len(e.Val))
 	case *ast.VarExpr:
 		if e.Name.Ident == "true" {
 			return "1"

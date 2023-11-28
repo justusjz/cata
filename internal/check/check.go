@@ -32,8 +32,10 @@ type GenericType struct {
 func CheckModule(module *ast.Module) {
 	c := checker{scope: newGlobalScope(), structs: map[string]*ast.StructDecl{}}
 	// add primitives to scope
+	c.scope.addType("u8", &GenericType{})
 	c.scope.addType("i32", &GenericType{})
 	c.scope.addType("bool", &GenericType{})
+	c.scope.addType("slice", &GenericType{Params: []string{"eltype"}})
 	// add structs to scope
 	for _, st := range module.Structs {
 		c.scanner = st.Scanner

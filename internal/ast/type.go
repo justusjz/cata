@@ -24,8 +24,13 @@ type FnType struct {
 	Return *NamedType
 }
 
+var Uint8 = &NamedType{Name: Ident{Ident: "u8"}}
 var Int32 = &NamedType{Name: Ident{Ident: "i32"}}
 var Bool = &NamedType{Name: Ident{Ident: "bool"}}
+
+func SliceType(eltype *NamedType) *NamedType {
+	return &NamedType{Name: Ident{Ident: "slice"}, Args: []*NamedType{eltype}}
+}
 
 func (n *NamedType) At() scanner.Pos { return n.Name.Pos }
 func (n *NamedType) ty()             {}

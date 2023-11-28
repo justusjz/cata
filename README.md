@@ -20,8 +20,8 @@ The current language implementation:
 - [x] Structs
 - [x] Control flow
 - [x] Generic types
-- [ ] Slices
-- [ ] C interop
+- [x] Slices
+- [x] C interop
 - [ ] Generic functions
 - [ ] Const generics
 - [ ] Arrays

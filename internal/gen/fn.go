@@ -22,7 +22,9 @@ func (g *generator) genFn(fnDecl *ast.FnDecl) {
 	strParams := strings.Join(params, ", ")
 	signature := fmt.Sprintf("%s %s(%s)", returnType, fnDecl.Name.Ident, strParams)
 	fmt.Fprintf(g.header, "%s;\n", signature)
-	fmt.Fprintf(g.body, "%s ", signature)
-	g.genBlock(fnDecl.Body)
-	fmt.Fprint(g.body, "\n\n")
+	if fnDecl.Body != nil {
+		fmt.Fprintf(g.body, "%s ", signature)
+		g.genBlock(fnDecl.Body)
+		fmt.Fprint(g.body, "\n\n")
+	}
 }

@@ -86,6 +86,10 @@ func isLetter(c byte) bool {
 	return c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c == '_'
 }
 
+func isEscape(c byte) bool {
+	return c == '"' || c == '\'' || c == 'n' || c == 't' || c == '\\'
+}
+
 func isDigit(c byte) bool {
 	return c >= '0' && c <= '9'
 }
@@ -127,6 +131,29 @@ func (s *Scanner) scan() {
 		}
 		s.tok_val = s.content[begin:s.pos]
 		s.tok = INT
+	} else if s.content[s.pos] == '"' {
+		// string literal
+		s.pos++
+		begin := s.pos
+		escaped := false
+		for s.pos < len(s.content) && (s.content[s.pos] != '"' || escaped) {
+			if escaped && !isEscape(s.content[s.pos]) {
+				s.Diagnose(s.tok_pos, "'\\%c' is not a valid escape sequence", s.content[s.pos])
+			}
+			escaped = !escaped && s.content[s.pos] == '\\'
+			if s.content[s.pos] == '\n' {
+				// string literal must not contain newline
+				s.Diagnose(s.tok_pos, "unterminated string literal")
+			}
+			s.pos++
+		}
+		// no ending " found
+		if s.pos == len(s.content) {
+			s.Diagnose(s.tok_pos, "unterminated string literal")
+		}
+		s.tok_val = s.content[begin:s.pos]
+		s.tok = STRING
+		s.pos++
 	} else {
 		c := s.content[s.pos]
 		s.pos++
@@ -179,6 +206,7 @@ func (s *Scanner) scan() {
 
 var keywords = map[string]Token{
 	"else":   ELSE,
+	"extern": EXTERN,
 	"fn":     FN,
 	"if":     IF,
 	"return": RETURN,
