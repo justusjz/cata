@@ -18,8 +18,9 @@ struct node {
     struct list list;
     char *symbol;
     char *string;
+    int integer;
   };
-  enum { CATA_LIST, CATA_SYMBOL, CATA_STRING } type;
+  enum { CATA_LIST, CATA_SYMBOL, CATA_STRING, CATA_INTEGER } type;
 };
 
 struct list list_create() {
@@ -44,7 +45,14 @@ void list_append(struct list *list, struct node node) {
   list->nodes[list->length++] = node;
 }
 
-void list_free(struct list *list) { free(list->nodes); }
+void node_free(struct node *node);
+
+void list_free(struct list *list) {
+  for (size_t i = 0; i < list->length; ++i) {
+    node_free(&list->nodes[i]);
+  }
+  free(list->nodes);
+}
 
 void node_print(const struct node *node) {
   if (node->type == CATA_LIST) {
@@ -61,6 +69,8 @@ void node_print(const struct node *node) {
     printf("%s", node->symbol);
   } else if (node->type == CATA_STRING) {
     printf("\"%s\"", node->string);
+  } else if (node->type == CATA_INTEGER) {
+    printf("%d", node->integer);
   } else {
     printf("internal error: invalid node type");
     exit(1);
@@ -74,6 +84,8 @@ void node_free(struct node *node) {
     free(node->symbol);
   } else if (node->type == CATA_STRING) {
     free(node->string);
+  } else if (node->type == CATA_INTEGER) {
+    // don't do anything
   } else {
     printf("internal error: invalid node type");
     exit(1);
@@ -139,6 +151,20 @@ char *parse_string(const char **input) {
   return string;
 }
 
+int to_int(const char *s, int *result) {
+  *result = 0;
+  size_t length = strlen(s);
+  for (size_t i = 0; i < length; ++i) {
+    char c = s[i];
+    if (c < '0' || c > '9') {
+      // not a valid integer
+      return 1;
+    }
+    *result = *result * 10 + (s[i] - '0');
+  }
+  return 0;
+}
+
 struct node parse(const char **input) {
   struct node result;
   if (**input == '(') {
@@ -156,15 +182,114 @@ struct node parse(const char **input) {
     result.type = CATA_STRING;
     result.string = parse_string(input);
   } else {
-    result.type = CATA_SYMBOL;
-    result.symbol = parse_symbol(input);
+    char *symbol = parse_symbol(input);
+    if (to_int(symbol, &result.integer) == 0) {
+      result.type = CATA_INTEGER;
+    } else {
+      result.type = CATA_SYMBOL;
+      result.symbol = symbol;
+    }
+  }
+  return result;
+}
+
+union value {
+  const char *string;
+  int integer;
+};
+
+typedef union value (*native_func)(size_t, union value *);
+
+struct env_entry {
+  const char *sym;
+  native_func func;
+};
+
+union value native_print_string(size_t arg_count, union value *args) {
+  printf("%s", args[0].string);
+}
+
+union value native_print_int(size_t arg_count, union value *args) {
+  printf("%d", args[0].integer);
+}
+
+union value native_add(size_t arg_count, union value *args) {
+  union value result;
+  result.integer = args[0].integer + args[1].integer;
+  return result;
+}
+
+union value native_exit(size_t arg_count, union value *args) { exit(0); }
+
+struct env_entry env[] = {
+    {"print-string", native_print_string},
+    {"print-int", native_print_int},
+    {"+", native_add},
+    {"exit", native_exit},
+    {NULL, NULL},
+};
+
+native_func env_find(const char *sym) {
+  // try to find the function
+  for (size_t i = 0; env[i].sym != NULL; ++i) {
+    if (strcmp(env[i].sym, sym) == 0) {
+      return env[i].func;
+    }
+  }
+  // function does not exist
+  return NULL;
+}
+
+union value eval(struct node *node) {
+  union value result;
+  if (node->type == CATA_INTEGER) {
+    result.integer = node->integer;
+  } else if (node->type == CATA_STRING) {
+    result.string = node->string;
+  } else if (node->type == CATA_SYMBOL) {
+    printf("error: variables are not yet supported");
+    exit(1);
+  } else if (node->type == CATA_LIST) {
+    if (node->list.length == 0) {
+      printf("error: empty list is invalid");
+      exit(1);
+    }
+    struct node fn = node->list.nodes[0];
+    if (fn.type != CATA_SYMBOL) {
+      printf("%d\n", fn.type);
+      printf("error: only symbol can be called as a function");
+      exit(1);
+    }
+    // evaluate all arguments
+    size_t arg_count = node->list.length - 1;
+    union value *args = malloc(arg_count * sizeof(union value));
+    for (size_t i = 0; i < arg_count; ++i) {
+      args[i] = eval(&node->list.nodes[i + 1]);
+    }
+    // find function
+    native_func func = env_find(fn.symbol);
+    if (func == NULL) {
+      printf("error: function %s does not exist", fn.symbol);
+      exit(1);
+    }
+    // call function
+    result = func(arg_count, args);
+    // free argument array
+    free(args);
   }
   return result;
 }
 
 int main() {
-  const char *input = "(print \"Hello, world!\") (print (+ 3 4))";
-  struct list list = parse_list(&input);
-  node_print(&list.nodes[0]);
+  for (;;) {
+    char buffer[100];
+    printf("> ");
+    gets(buffer);
+    const char *input = buffer;
+    struct node node = parse(&input);
+    eval(&node);
+    printf("\n");
+    node_free(&node);
+  }
   return 0;
 }
