@@ -13,7 +13,9 @@ jobs:
           emcc cata.c -o playground.js -sEXPORTED_FUNCTIONS=_run
           -sEXPORTED_RUNTIME_METHODS=ccall
       - name: archive artifact
-        run: tar -cvf artifact.tar playground.html playground.js playground.wasm
+        run:
+          tar --dereference --hard-dereference -cvf artifact.tar playground.html
+          playground.js playground.wasm
       - name: upload artifact
         uses: actions/upload-artifact@v4
         with:
