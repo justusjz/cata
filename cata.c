@@ -299,5 +299,3 @@ int main() {
   run(source);
   return 0;
 }
-
-int main() {}
