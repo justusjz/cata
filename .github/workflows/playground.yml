@@ -13,7 +13,7 @@ jobs:
           emcc cata.c -o playground.js -sEXPORTED_FUNCTIONS=_run
           -sEXPORTED_RUNTIME_METHODS=ccall
       - name: upload artifact
-        uses: actions/upload-pages-artifact@v2
+        uses: actions/upload-pages-artifact@v3
         with:
           path: .
 
