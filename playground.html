@@ -1,0 +1,100 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>Cata Playground</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function (event) {
+            // try to load from localstorage
+            const editor = document.getElementById('editor');
+            const code = window.localStorage.getItem('code');
+            editor.textContent = code;
+            // save code every five seconds
+            setInterval(function () {
+                window.localStorage.setItem('code', editor.textContent);
+            }, 5000);
+        });
+
+        function print_to_output(text) {
+            const output = document.getElementById('output');
+            // append the text to the output
+            if (!text) {
+                return;
+            }
+            output.innerText += text + '\n';
+            output.scrollTop = output.scrollHeight;
+        }
+
+        function run_code() {
+            const editor = document.getElementById('editor');
+            const output = document.getElementById('output');
+            // clear the output
+            output.innerText = '';
+            // get code from editor
+            const code = editor.textContent;
+            try {
+                // call WebAssembly Cata run function
+                Module.ccall('run', 'void', ['string'], [code]);
+            } catch (error) {
+                // execution errorn
+                print_to_output('exited with status ' + error.status);
+            }
+        }
+
+        // print function for emscripten
+        var Module = {
+            'print': print_to_output,
+        };
+    </script>
+    <script async type="text/javascript" src="playground.js"></script>
+    <style>
+        html,
+        body {
+            height: 98%;
+        }
+
+        .editor-background {
+            background-color: #222;
+            border-radius: 15px;
+            height: 40%;
+            padding: 5px;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+
+        .editor-content {
+            font-family: 'Courier New', Courier, monospace;
+            color: #DDD;
+            padding: 10px;
+            outline: 0px;
+            box-sizing: border-box;
+            height: 100%;
+            overflow-y: scroll;
+        }
+
+        .button-run {
+            background-color: #080;
+            color: #DDD;
+            border-radius: 10px;
+            font-size: medium;
+            cursor: pointer;
+            padding: 10px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+
+<body>
+    <button class="button-run" onclick="run_code()">RUN &#9658</button>
+    <div class="editor-background">
+        <div class="editor-content" id="editor" contenteditable="true" spellcheck="false">
+        </div>
+    </div>
+    <div class="editor-background">
+        <div class="editor-content" id="output"></div>
+    </div>
+</body>
+
+</html>
