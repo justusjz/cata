@@ -1,0 +1,36 @@
+name: playground
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+      - name: setup emscripten
+        uses: mymindstorm/setup-emsdk@v14
+      - name: build
+        run:
+          emcc cata.c -o playground.js -sEXPORTED_FUNCTIONS=run
+          -sEXPORTED_RUNTIME_METHODS=ccall
+      - name: archive artifact
+        run: tar -cvf artifact.tar playground.html playground.js playground.wasm
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: github-pages
+          path: artifact.tar
+          retention-days: 1
+          overwrite: true
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: deploy to pages
+        uses: actions/deploy-pages@v4
