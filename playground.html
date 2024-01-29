@@ -9,7 +9,11 @@
             // try to load from localstorage
             const editor = document.getElementById('editor');
             const code = window.localStorage.getItem('code');
-            editor.textContent = code;
+            if (code) {
+                editor.textContent = code;
+            } else {
+                editor.textContent = '(print-string "Hello, world!")';
+            }
             // save code every five seconds
             setInterval(function () {
                 window.localStorage.setItem('code', editor.textContent);
