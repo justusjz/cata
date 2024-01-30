@@ -6,6 +6,7 @@
 
 #define LIST_INITIAL_SIZE 8
 #define LIST_GROW_FACTOR 2
+#define READ_CHUNK_SIZE 4096
 
 struct list {
   struct node *nodes;
@@ -266,22 +267,39 @@ union value eval(struct node *node) {
       printf("error: only symbol can be called as a function\n");
       exit(1);
     }
-    // evaluate all arguments
-    size_t arg_count = node->list.length - 1;
-    union value *args = malloc(arg_count * sizeof(union value));
-    for (size_t i = 0; i < arg_count; ++i) {
-      args[i] = eval(&node->list.nodes[i + 1]);
+    if (strcmp(fn.symbol, "if") == 0) {
+      // if special form
+      if (node->list.length != 4) {
+        printf("error: if needs exactly 3 arguments, but got %d\n",
+               node->list.length - 1);
+        exit(1);
+      }
+      union value condition = eval(&node->list.nodes[1]);
+      if (condition.integer) {
+        // condition is true
+        result = eval(&node->list.nodes[2]);
+      } else {
+        // condition is false
+        result = eval(&node->list.nodes[3]);
+      }
+    } else {
+      // evaluate all arguments
+      size_t arg_count = node->list.length - 1;
+      union value *args = malloc(arg_count * sizeof(union value));
+      for (size_t i = 0; i < arg_count; ++i) {
+        args[i] = eval(&node->list.nodes[i + 1]);
+      }
+      // find function
+      native_func func = env_find(fn.symbol);
+      if (func == NULL) {
+        printf("error: function %s does not exist\n", fn.symbol);
+        exit(1);
+      }
+      // call function
+      result = func(arg_count, args);
+      // free argument array
+      free(args);
     }
-    // find function
-    native_func func = env_find(fn.symbol);
-    if (func == NULL) {
-      printf("error: function %s does not exist\n", fn.symbol);
-      exit(1);
-    }
-    // call function
-    result = func(arg_count, args);
-    // free argument array
-    free(args);
   }
   return result;
 }
@@ -294,8 +312,38 @@ void run(const char *source) {
   list_free(&list);
 }
 
-int main() {
-  const char *source = "(print-string \"Hello, world!\")";
-  run(source);
+char *read_file(const char *filename) {
+  FILE *f = fopen(filename, "r");
+  if (!f) {
+    return NULL;
+  }
+  char *buffer = malloc(READ_CHUNK_SIZE);
+  size_t read = 0, total = 0, offset = 0;
+  while ((read = fread(buffer + total, 1, READ_CHUNK_SIZE, f)) ==
+         READ_CHUNK_SIZE) {
+    total += read;
+    buffer = realloc(buffer, total + READ_CHUNK_SIZE);
+  }
+  total += read;
+  buffer = realloc(buffer, total + 1);
+  buffer[total] = '\0';
+  return buffer;
+}
+
+int main(int argc, char *argv[]) {
+  if (argc < 2) {
+    printf("usage: cata <file>\n");
+    exit(0);
+  }
+  for (int i = 1; i < argc; ++i) {
+    const char *filename = argv[i];
+    char *content = read_file(filename);
+    if (!content) {
+      printf("error: could not read file %s\n", filename);
+      continue;
+    }
+    run(content);
+    free(content);
+  }
   return 0;
 }
