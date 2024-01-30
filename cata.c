@@ -220,9 +220,21 @@ union value native_print_int(size_t arg_count, union value *args) {
   return result;
 }
 
+union value native_read_int(size_t arg_count, union value *args) {
+  union value result;
+  scanf("%d", &result.integer);
+  return result;
+}
+
 union value native_add(size_t arg_count, union value *args) {
   union value result;
   result.integer = args[0].integer + args[1].integer;
+  return result;
+}
+
+union value native_equal(size_t arg_count, union value *args) {
+  union value result;
+  result.integer = args[0].integer == args[1].integer;
   return result;
 }
 
@@ -231,7 +243,9 @@ union value native_exit(size_t arg_count, union value *args) { exit(0); }
 struct env_entry env[] = {
     {"print-string", native_print_string},
     {"print-int", native_print_int},
+    {"read-int", native_read_int},
     {"+", native_add},
+    {"=", native_equal},
     {"exit", native_exit},
     {NULL, NULL},
 };
