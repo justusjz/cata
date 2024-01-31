@@ -201,11 +201,6 @@ union value {
 
 typedef union value (*native_func)(size_t, union value *);
 
-struct env_entry {
-  const char *sym;
-  native_func func;
-};
-
 union value native_print_string(size_t arg_count, union value *args) {
   union value result;
   printf("%s\n", args[0].string);
@@ -240,36 +235,66 @@ union value native_equal(size_t arg_count, union value *args) {
 
 union value native_exit(size_t arg_count, union value *args) { exit(0); }
 
-struct env_entry env[] = {
-    {"print-string", native_print_string},
-    {"print-int", native_print_int},
-    {"read-int", native_read_int},
-    {"+", native_add},
-    {"=", native_equal},
-    {"exit", native_exit},
-    {NULL, NULL},
+enum env_entry_type {
+  ENV_ENTRY_FUNC,
+  ENV_ENTRY_VAR,
 };
 
-native_func env_find(const char *sym) {
-  // try to find the function
-  for (size_t i = 0; env[i].sym != NULL; ++i) {
-    if (strcmp(env[i].sym, sym) == 0) {
-      return env[i].func;
+struct env_entry {
+  const char *sym;
+  union {
+    native_func func;
+    union value var;
+  };
+  enum env_entry_type type;
+};
+
+struct env {
+  struct env_entry *entries;
+  const struct env *parent;
+  size_t entry_count;
+};
+
+struct env_entry global_env_entries[] = {
+    {.sym = "print-string",
+     .func = native_print_string,
+     .type = ENV_ENTRY_FUNC},
+    {.sym = "print-int", .func = native_print_int, .type = ENV_ENTRY_FUNC},
+    {.sym = "read-int", .func = native_read_int, .type = ENV_ENTRY_FUNC},
+    {.sym = "+", .func = native_add, .type = ENV_ENTRY_FUNC},
+    {.sym = "=", .func = native_equal, .type = ENV_ENTRY_FUNC},
+    {.sym = "exit", .func = native_exit, .type = ENV_ENTRY_FUNC},
+};
+
+#define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(arr[0]))
+
+struct env global_env = {global_env_entries, NULL,
+                         ARRAY_LENGTH(global_env_entries)};
+
+const struct env_entry *env_find(const struct env *env, const char *sym) {
+  // try to find the env entry
+  for (size_t i = 0; i < env->entry_count; ++i) {
+    if (strcmp(env->entries[i].sym, sym) == 0) {
+      return &env->entries[i];
     }
   }
-  // function does not exist
+  // entry not found
   return NULL;
 }
 
-union value eval(struct node *node) {
+union value eval(const struct env *env, struct node *node) {
   union value result;
   if (node->type == CATA_INTEGER) {
     result.integer = node->integer;
   } else if (node->type == CATA_STRING) {
     result.string = node->string;
   } else if (node->type == CATA_SYMBOL) {
-    printf("error: variables are not yet supported\n");
-    exit(1);
+    const struct env_entry *entry = env_find(env, node->symbol);
+    if (entry->type != ENV_ENTRY_VAR) {
+      printf("error: %s is not a variable\n", node->symbol);
+      exit(1);
+    }
+    result = entry->var;
   } else if (node->type == CATA_LIST) {
     if (node->list.length == 0) {
       printf("error: empty list is invalid\n");
@@ -288,29 +313,69 @@ union value eval(struct node *node) {
                node->list.length - 1);
         exit(1);
       }
-      union value condition = eval(&node->list.nodes[1]);
+      union value condition = eval(env, &node->list.nodes[1]);
       if (condition.integer) {
         // condition is true
-        result = eval(&node->list.nodes[2]);
+        result = eval(env, &node->list.nodes[2]);
       } else {
         // condition is false
-        result = eval(&node->list.nodes[3]);
+        result = eval(env, &node->list.nodes[3]);
       }
+    } else if (strcmp(fn.symbol, "let") == 0) {
+      // let special form
+      if (node->list.length < 2) {
+        printf("error: let needs at least 2 arguments, but got %d\n",
+               node->list.length);
+        exit(1);
+      }
+      struct node vars = node->list.nodes[1];
+      if (vars.type != CATA_LIST) {
+        printf("error: second argument of let must be a list\n");
+        exit(1);
+      }
+      struct env new_env;
+      // create a new environment
+      new_env.entry_count = vars.list.length / 2;
+      new_env.entries = malloc(sizeof(struct env_entry) * new_env.entry_count);
+      new_env.parent = env;
+      for (size_t i = 0; i + 1 < vars.list.length; i += 2) {
+        struct node *var = &vars.list.nodes[i];
+        struct node *expr = &vars.list.nodes[i + 1];
+        if (var->type != CATA_SYMBOL) {
+          printf("error: expected symbol in let\n");
+          exit(1);
+        }
+        union value var_value = eval(env, expr);
+        struct env_entry *entry = &new_env.entries[i / 2];
+        entry->type = ENV_ENTRY_VAR;
+        entry->sym = var->symbol;
+        entry->var = var_value;
+      }
+      // evaluate the actual expressions and return the last one
+      for (size_t i = 2; i < node->list.length; ++i) {
+        struct node *expr = &node->list.nodes[i];
+        result = eval(&new_env, expr);
+      }
+      // free the environment
+      free(new_env.entries);
     } else {
       // evaluate all arguments
       size_t arg_count = node->list.length - 1;
       union value *args = malloc(arg_count * sizeof(union value));
       for (size_t i = 0; i < arg_count; ++i) {
-        args[i] = eval(&node->list.nodes[i + 1]);
+        args[i] = eval(env, &node->list.nodes[i + 1]);
       }
       // find function
-      native_func func = env_find(fn.symbol);
-      if (func == NULL) {
+      const struct env_entry *entry = env_find(env, fn.symbol);
+      if (entry == NULL) {
         printf("error: function %s does not exist\n", fn.symbol);
+        exit(1);
+      } else if (entry->type != ENV_ENTRY_FUNC) {
+        printf("error: %s is not a function\n", fn.symbol);
         exit(1);
       }
       // call function
-      result = func(arg_count, args);
+      result = entry->func(arg_count, args);
       // free argument array
       free(args);
     }
@@ -321,7 +386,7 @@ union value eval(struct node *node) {
 void run(const char *source) {
   struct list list = parse_list(&source);
   for (size_t i = 0; i < list.length; ++i) {
-    eval(&list.nodes[i]);
+    eval(&global_env, &list.nodes[i]);
   }
   list_free(&list);
 }
