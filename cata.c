@@ -278,6 +278,9 @@ const struct env_entry *env_find(const struct env *env, const char *sym) {
       return &env->entries[i];
     }
   }
+  if (env->parent) {
+    return env_find(env->parent, sym);
+  }
   // entry not found
   return NULL;
 }
@@ -290,8 +293,12 @@ union value eval(const struct env *env, struct node *node) {
     result.string = node->string;
   } else if (node->type == CATA_SYMBOL) {
     const struct env_entry *entry = env_find(env, node->symbol);
+    if (!entry) {
+      printf("error: variable '%s' does not exist\n", node->symbol);
+      exit(1);
+    }
     if (entry->type != ENV_ENTRY_VAR) {
-      printf("error: %s is not a variable\n", node->symbol);
+      printf("error: '%s' is not a variable\n", node->symbol);
       exit(1);
     }
     result = entry->var;
