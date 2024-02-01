@@ -194,12 +194,13 @@ struct node parse(const char **input) {
   return result;
 }
 
+typedef union value (*native_func_t)(size_t, union value *);
+
 union value {
   const char *string;
   int integer;
+  native_func_t native_func;
 };
-
-typedef union value (*native_func)(size_t, union value *);
 
 union value native_print_string(size_t arg_count, union value *args) {
   union value result;
@@ -235,100 +236,86 @@ union value native_equal(size_t arg_count, union value *args) {
 
 union value native_exit(size_t arg_count, union value *args) { exit(0); }
 
-enum env_entry_type {
-  ENV_ENTRY_FUNC,
-  ENV_ENTRY_VAR,
-};
-
-struct env_entry {
+struct scope_entry {
   const char *sym;
-  union {
-    native_func func;
-    union value var;
-  };
-  enum env_entry_type type;
+  union value var;
 };
 
-struct env {
-  struct env_entry *entries;
+struct scope {
+  struct scope_entry *entries;
   const struct env *parent;
   size_t entry_count;
 };
 
-struct env_entry global_env_entries[] = {
-    {.sym = "print-string",
-     .func = native_print_string,
-     .type = ENV_ENTRY_FUNC},
-    {.sym = "print-int", .func = native_print_int, .type = ENV_ENTRY_FUNC},
-    {.sym = "read-int", .func = native_read_int, .type = ENV_ENTRY_FUNC},
-    {.sym = "+", .func = native_add, .type = ENV_ENTRY_FUNC},
-    {.sym = "=", .func = native_equal, .type = ENV_ENTRY_FUNC},
-    {.sym = "exit", .func = native_exit, .type = ENV_ENTRY_FUNC},
+struct scope_entry global_scope_entries[] = {
+    {.sym = "print-string", .var.native_func = native_print_string},
+    {.sym = "print-int", .var.native_func = native_print_int},
+    {.sym = "read-int", .var.native_func = native_read_int},
+    {.sym = "+", .var.native_func = native_add},
+    {.sym = "=", .var.native_func = native_equal},
+    {.sym = "exit", .var.native_func = native_exit},
 };
 
 #define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(arr[0]))
 
-struct env global_env = {global_env_entries, NULL,
-                         ARRAY_LENGTH(global_env_entries)};
+struct scope global_scope = {
+    .entries = global_scope_entries, NULL, ARRAY_LENGTH(global_scope_entries)};
 
-const struct env_entry *env_find(const struct env *env, const char *sym) {
-  // try to find the env entry
-  for (size_t i = 0; i < env->entry_count; ++i) {
-    if (strcmp(env->entries[i].sym, sym) == 0) {
-      return &env->entries[i];
+// find a variable in the given scope
+union value *scope_find(const struct scope *scope, const char *sym) {
+  // try to find the scope entry
+  for (size_t i = 0; i < scope->entry_count; ++i) {
+    if (strcmp(scope->entries[i].sym, sym) == 0) {
+      return &scope->entries[i].var;
     }
   }
-  if (env->parent) {
-    return env_find(env->parent, sym);
+  // try the parent scope
+  if (scope->parent) {
+    return scope_find(scope->parent, sym);
   }
   // entry not found
   return NULL;
 }
 
-union value eval(const struct env *env, struct node *node) {
+union value eval(const struct scope *scope, struct node *node) {
   union value result;
   if (node->type == CATA_INTEGER) {
     result.integer = node->integer;
   } else if (node->type == CATA_STRING) {
     result.string = node->string;
   } else if (node->type == CATA_SYMBOL) {
-    const struct env_entry *entry = env_find(env, node->symbol);
-    if (!entry) {
-      printf("error: variable '%s' does not exist\n", node->symbol);
+    const union value *var = scope_find(scope, node->symbol);
+    if (!var) {
+      printf("error: '%s' does not exist\n", node->symbol);
       exit(1);
     }
-    if (entry->type != ENV_ENTRY_VAR) {
-      printf("error: '%s' is not a variable\n", node->symbol);
-      exit(1);
-    }
-    result = entry->var;
+    result = *var;
   } else if (node->type == CATA_LIST) {
     if (node->list.length == 0) {
-      printf("error: empty list is invalid\n");
+      printf("error: an empty list cannot be evaluated\n");
       exit(1);
     }
-    struct node fn = node->list.nodes[0];
-    if (fn.type != CATA_SYMBOL) {
-      printf("%d\n", fn.type);
-      printf("error: only symbol can be called as a function\n");
+    struct node form = node->list.nodes[0];
+    if (form.type != CATA_SYMBOL) {
+      printf("error: first element of list must be symbol\n");
       exit(1);
     }
-    if (strcmp(fn.symbol, "if") == 0) {
+    if (strcmp(form.symbol, "if") == 0) {
       // if special form
       if (node->list.length != 4) {
         printf("error: if needs exactly 3 arguments, but got %d\n",
                node->list.length - 1);
         exit(1);
       }
-      union value condition = eval(env, &node->list.nodes[1]);
+      union value condition = eval(scope, &node->list.nodes[1]);
       if (condition.integer) {
         // condition is true
-        result = eval(env, &node->list.nodes[2]);
+        result = eval(scope, &node->list.nodes[2]);
       } else {
         // condition is false
-        result = eval(env, &node->list.nodes[3]);
+        result = eval(scope, &node->list.nodes[3]);
       }
-    } else if (strcmp(fn.symbol, "let") == 0) {
+    } else if (strcmp(form.symbol, "let") == 0) {
       // let special form
       if (node->list.length < 2) {
         printf("error: let needs at least 2 arguments, but got %d\n",
@@ -340,11 +327,12 @@ union value eval(const struct env *env, struct node *node) {
         printf("error: second argument of let must be a list\n");
         exit(1);
       }
-      struct env new_env;
+      struct scope new_scope;
       // create a new environment
-      new_env.entry_count = vars.list.length / 2;
-      new_env.entries = malloc(sizeof(struct env_entry) * new_env.entry_count);
-      new_env.parent = env;
+      new_scope.entry_count = vars.list.length / 2;
+      new_scope.entries =
+          malloc(sizeof(struct scope_entry) * new_scope.entry_count);
+      new_scope.parent = scope;
       for (size_t i = 0; i + 1 < vars.list.length; i += 2) {
         struct node *var = &vars.list.nodes[i];
         struct node *expr = &vars.list.nodes[i + 1];
@@ -352,39 +340,38 @@ union value eval(const struct env *env, struct node *node) {
           printf("error: expected symbol in let\n");
           exit(1);
         }
-        union value var_value = eval(env, expr);
-        struct env_entry *entry = &new_env.entries[i / 2];
-        entry->type = ENV_ENTRY_VAR;
+        union value var_value = eval(scope, expr);
+        struct scope_entry *entry = &new_scope.entries[i / 2];
         entry->sym = var->symbol;
         entry->var = var_value;
       }
       // evaluate the actual expressions and return the last one
       for (size_t i = 2; i < node->list.length; ++i) {
         struct node *expr = &node->list.nodes[i];
-        result = eval(&new_env, expr);
+        result = eval(&new_scope, expr);
       }
       // free the environment
-      free(new_env.entries);
-    } else {
+      free(new_scope.entries);
+    } else if (strcmp(form.symbol, "fncall") == 0) {
+      if (node->list.length < 2) {
+        printf("error: fncall needs at least 1 argument\n");
+        exit(1);
+      }
+      // evaluate the function
+      union value function = eval(scope, &node->list.nodes[1]);
       // evaluate all arguments
-      size_t arg_count = node->list.length - 1;
+      size_t arg_count = node->list.length - 2;
       union value *args = malloc(arg_count * sizeof(union value));
       for (size_t i = 0; i < arg_count; ++i) {
-        args[i] = eval(env, &node->list.nodes[i + 1]);
-      }
-      // find function
-      const struct env_entry *entry = env_find(env, fn.symbol);
-      if (entry == NULL) {
-        printf("error: function %s does not exist\n", fn.symbol);
-        exit(1);
-      } else if (entry->type != ENV_ENTRY_FUNC) {
-        printf("error: %s is not a function\n", fn.symbol);
-        exit(1);
+        args[i] = eval(scope, &node->list.nodes[i + 2]);
       }
       // call function
-      result = entry->func(arg_count, args);
+      result = function.native_func(arg_count, args);
       // free argument array
       free(args);
+    } else {
+      printf("error: invalid form %s\n", form.symbol);
+      exit(1);
     }
   }
   return result;
@@ -393,7 +380,7 @@ union value eval(const struct env *env, struct node *node) {
 void run(const char *source) {
   struct list list = parse_list(&source);
   for (size_t i = 0; i < list.length; ++i) {
-    eval(&global_env, &list.nodes[i]);
+    eval(&global_scope, &list.nodes[i]);
   }
   list_free(&list);
 }

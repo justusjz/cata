@@ -12,7 +12,7 @@
             if (code) {
                 editor.textContent = code;
             } else {
-                editor.textContent = '(print-string "Hello, world!")';
+                editor.textContent = '(fncall print-string "Hello, world!")';
             }
             // save code every five seconds
             setInterval(function () {
