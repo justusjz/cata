@@ -1,5 +1,6 @@
 /* Copyright (c) 2024 Justus Zorn */
 
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -116,7 +117,15 @@ struct list parse_list(const char **input) {
   return list;
 }
 
-char *parse_symbol(const char **input) {
+char uppercase(char c) {
+  if (c >= 'a' && c <= 'z') {
+    return c - ('a' - 'A');
+  } else {
+    return c;
+  }
+}
+
+char *read_sym(const char **input) {
   // save the beginning of the symbol
   const char *begin = *input;
   // skip all symbol characters
@@ -125,31 +134,78 @@ char *parse_symbol(const char **input) {
   }
   // calculate length
   size_t length = *input - begin;
-  // copy string
-  char *symbol = malloc(length + 1);
-  strncpy(symbol, begin, length);
-  symbol[length] = '\0';
-  return symbol;
+  // copy and upcase symbol
+  char *sym = malloc(length + 1);
+  for (size_t i = 0; i < length; ++i) {
+    sym[i] = uppercase(begin[i]);
+  }
+  sym[length] = '\0';
+  return sym;
 }
 
-char *parse_string(const char **input) {
+char *read_str(const char **input) {
   // skip "
   ++*input;
   const char *begin = *input;
-  while (**input != '"' && **input != '\0') {
+  bool escaped = false;
+  // the length the result string will have
+  // e.g. \\ in the source code will have only
+  // length 1 in the result string
+  size_t actual_length = 0;
+  // skip chars until a matching " is found or EOF is reached
+  // if the current char is escaped, don't break on "
+  while ((**input != '"' || escaped) && **input != '\0') {
+    if (!escaped) {
+      // only count this character when it's not escaped
+      ++actual_length;
+    }
+    // the next char is escaped when this is a backslash
+    // if this character is escaped, the backslash is ignored
+    escaped = !escaped && **input == '\\';
+    if (**input == '\n') {
+      printf("error: string literal cannot contain newline\n");
+      exit(1);
+    }
     ++*input;
   }
   if (**input != '"') {
+    // reached EOF
     printf("error: unterminated string literal\n");
     exit(1);
   }
-  size_t length = *input - begin;
-  char *string = malloc(length + 1);
-  strncpy(string, begin, length);
-  string[length] = '\0';
+  // copy string and replace escape sequences
+  char *str = malloc(actual_length + 1);
+  escaped = false;
+  size_t index = 0;
+  for (const char *p = begin; p < *input; ++p) {
+    if (escaped) {
+      // not escaped anymore
+      escaped = false;
+      // we are in an escape sequence
+      if (*p == 'n') {
+        // newline escape
+        str[index++] = '\n';
+      } else if (*p == '"') {
+        // double-quote escape
+        str[index++] = '"';
+      } else {
+        printf("error: invalid escape sequence\n");
+        exit(1);
+      }
+    } else {
+      // check whether the next character will be escaped
+      escaped = *p == '\\';
+      if (!escaped) {
+        // copy only when this is not an
+        // escaping char
+        str[index++] = *p;
+      }
+    }
+  }
+  str[actual_length] = '\0';
   // skip "
   ++*input;
-  return string;
+  return str;
 }
 
 int to_int(const char *s, int *result) {
@@ -181,9 +237,9 @@ struct node parse(const char **input) {
     ++*input;
   } else if (**input == '"') {
     result.type = CATA_STRING;
-    result.string = parse_string(input);
+    result.string = read_str(input);
   } else {
-    char *symbol = parse_symbol(input);
+    char *symbol = read_sym(input);
     if (to_int(symbol, &result.integer) == 0) {
       result.type = CATA_INTEGER;
     } else {
@@ -248,12 +304,12 @@ struct scope {
 };
 
 struct scope_entry global_scope_entries[] = {
-    {.sym = "print-string", .var.native_func = native_print_string},
-    {.sym = "print-int", .var.native_func = native_print_int},
-    {.sym = "read-int", .var.native_func = native_read_int},
+    {.sym = "PRINT-STRING", .var.native_func = native_print_string},
+    {.sym = "PRINT-INT", .var.native_func = native_print_int},
+    {.sym = "READ-INT", .var.native_func = native_read_int},
     {.sym = "+", .var.native_func = native_add},
     {.sym = "=", .var.native_func = native_equal},
-    {.sym = "exit", .var.native_func = native_exit},
+    {.sym = "EXIT", .var.native_func = native_exit},
 };
 
 #define ARRAY_LENGTH(arr) (sizeof(arr) / sizeof(arr[0]))
@@ -300,7 +356,7 @@ union value eval(const struct scope *scope, struct node *node) {
       printf("error: first element of list must be symbol\n");
       exit(1);
     }
-    if (strcmp(form.symbol, "if") == 0) {
+    if (strcmp(form.symbol, "IF") == 0) {
       // if special form
       if (node->list.length != 4) {
         printf("error: if needs exactly 3 arguments, but got %d\n",
@@ -315,7 +371,7 @@ union value eval(const struct scope *scope, struct node *node) {
         // condition is false
         result = eval(scope, &node->list.nodes[3]);
       }
-    } else if (strcmp(form.symbol, "let") == 0) {
+    } else if (strcmp(form.symbol, "LET") == 0) {
       // let special form
       if (node->list.length < 2) {
         printf("error: let needs at least 2 arguments, but got %d\n",
@@ -352,7 +408,7 @@ union value eval(const struct scope *scope, struct node *node) {
       }
       // free the environment
       free(new_scope.entries);
-    } else if (strcmp(form.symbol, "fncall") == 0) {
+    } else if (strcmp(form.symbol, "FNCALL") == 0) {
       if (node->list.length < 2) {
         printf("error: fncall needs at least 1 argument\n");
         exit(1);
@@ -377,7 +433,9 @@ union value eval(const struct scope *scope, struct node *node) {
   return result;
 }
 
+// runs the given source code
 void run(const char *source) {
+  // parse the source as multiple objects
   struct list list = parse_list(&source);
   for (size_t i = 0; i < list.length; ++i) {
     eval(&global_scope, &list.nodes[i]);
@@ -386,18 +444,23 @@ void run(const char *source) {
 }
 
 char *read_file(const char *filename) {
+  // try to open the file
   FILE *f = fopen(filename, "r");
   if (!f) {
     return NULL;
   }
+  // allocate a buffer
   char *buffer = malloc(READ_CHUNK_SIZE);
   size_t read = 0, total = 0, offset = 0;
   while ((read = fread(buffer + total, 1, READ_CHUNK_SIZE, f)) ==
          READ_CHUNK_SIZE) {
+    // when the buffer was filled completely, reallocate it
     total += read;
     buffer = realloc(buffer, total + READ_CHUNK_SIZE);
   }
+  // count the total number of bytes written
   total += read;
+  // add '\0' to buffer
   buffer = realloc(buffer, total + 1);
   buffer[total] = '\0';
   return buffer;
